@@ -96,10 +96,9 @@ def qa2hypo_test(args):
         if k != -1:
             q_type = get_question_type(question)
 
-        if re.search('what '+AUX_V_DOESONLY_REGEX, question) or re.search('what '+AUX_V_DO_REGEX, question):
+        if not re.search('what '+AUX_V_DOESONLY_REGEX, question) and not re.search('what '+AUX_V_DO_REGEX, question):
 
             print 'Question:', question
-            print
             print 'Answer:', ans
 
             # test_patterns([q_type], question)
@@ -120,11 +119,14 @@ def qa2hypo_test(args):
 def qa2hypo(question, answer):
     question = question.lower()
     answer = answer.lower().strip('.')
+    print 'Question:', question
+    print 'Answer:', answer
 
     # determine the question type:
     q_type = get_question_type(question)
 
     sent = rule_based_transform(question, answer, q_type)
+    print 'Result:', sent
     return sent
 
 
@@ -170,27 +172,29 @@ def rule_based_transform(question, ans, q_type):
         elif q_type == QUESTION_TYPES[3]:
             
             if re.search('what '+AUX_V_DOESONLY_REGEX, question):
-                s_aux, e_aux, s_vp, e_vp, first_VP=find_np_pos(question, ans, 'what '+AUX_V_DOESONLY_REGEX, node_type='VP')
-                hypo = replace(question, e_vp, e_vp, ' '+ans)
+                s_aux, e_aux, s_vp, e_vp, first_VP=find_np_pos(question, ans, 'what '+AUX_V_DOESONLY_REGEX, node_type='VP', if_root_node=True)
+                hypo = replace(question, e_vp, e_vp, ' '+ans+' ')
                 print 'hypo:', hypo
                 hypo = replace(hypo, s_aux, e_aux, '')
                 hypo = strip_nonalnum_re(hypo)
                 
-                # hypo = strip_nonalnum_re(hypo)+' '+ans
             elif re.search('what '+AUX_V_DO_REGEX, question):
-                s_aux, e_aux, s_vp, e_vp, first_VP=find_np_pos(question, ans, 'what '+AUX_V_DO_REGEX, node_type='VP')
-                hypo = replace(question, e_vp, e_vp, ' '+ans)
+                s_aux, e_aux, s_vp, e_vp, first_VP=find_np_pos(question, ans, 'what '+AUX_V_DO_REGEX, node_type='VP', if_root_node=True)
+                hypo = replace(question, e_vp, e_vp, ' '+ans+' ')
                 print 'hypo:', hypo
                 hypo = replace(hypo, s_aux, e_aux, '')
                 hypo = strip_nonalnum_re(hypo)
                 
-                # hypo = strip_nonalnum_re(hypo)+' '+ans
             else:
-                s, e = test_pattern('what', question)
+                s, e = find_whnp_pos(question)
+                if not s and not e:
+                    s, e = test_pattern('what', question)
                 hypo = replace(question, s, e, ans)
 
         elif q_type == QUESTION_TYPES[4]:
-            s, e = test_pattern('which', question)
+            s, e = find_whnp_pos(question)
+            if not s and not e:
+                s, e = test_pattern('which', question)
             hypo = replace(question, s, e, ans)
 
         elif q_type == QUESTION_TYPES[5]:
@@ -313,36 +317,51 @@ def find_or_pos(question, ans, q_type):
 
     return s0, e1, candidate_chosen
 
+# find the first subtree of a certain node type
+def find_first_subtree(tree, node_type):
+    for subtree in tree.subtrees(filter=lambda x: x.label() == node_type):
+        return subtree
 
+def find_first_root(tree, node_type):
+    a = find_first_subtree(tree, node_type)
+    if a == None:
+        return None
+    print a[0].label()
+    return a[0]
 
 # find the positions of the aux_v and the first noun
-def find_np_pos(question, ans, q_type, node_type='NP'):
+def find_np_pos(question, ans, q_type, node_type='NP', if_root_node=False):
     s_aux, e_aux = test_pattern(q_type, question)
     print '  %2d : %2d = "%s"' % (s_aux, e_aux-1, question[s_aux:e_aux])
-                
-    question_partial = question[s_aux:]
-    if node_type=='VP':
-        question_partial = question[e_aux:]
-    sent_parse = loads(server.parse(question_partial))
-    parse_tree = sent_parse['sentences'][0]['parsetree']
-    print "Parse Tree:", parse_tree
-    tree = Tree.fromstring(parse_tree)
+    
+    if node_type=='NP':
+        question = question[s_aux:]
+    elif node_type=='VP':
+        question = question[e_aux:]
+
+    print "Shortened question:", question
+
+    tree = get_parse_tree(question)
+    # tree.pretty_print()
 
     first_NP = None
-    for subtree in tree.subtrees(filter=lambda x: x.label() == node_type):
-        # print(subtree.leaves())
-        first_NP = ' '.join(subtree.leaves())
-        break
-        # if re.search('(\A'+AUX_V_BE_REGEX+' )|(([!"#$%&()*+,-./:;<=>?@\[\\\]^_`{|}~]){1} '+AUX_V_BE_REGEX+' )', question):
-        #     for subsubtree in subtree.subtrees(filter=lambda y: y.label() == 'NP'):
-        #         first_NP = ' '.join(subsubtree.leaves())
-        #         break
-        # else:
-        #     first_NP = ' '.join(subtree.leaves())
-        #     break
 
-    print node_type+':', first_NP
-    print
+    if (node_type == 'NP') or (node_type == 'VP'):
+        # get the whole node
+        if not if_root_node:
+            subtree = find_first_subtree(tree, node_type)
+            # print "whole node:\n", subtree.pretty_print()
+            first_NP = ' '.join(subtree.leaves())
+
+        # get the root node
+        else:
+            root = find_first_root(tree, node_type)
+            # print "root node:\n", root.pretty_print()
+            if root != None:
+                first_NP = ' '.join(root.leaves())
+
+        print node_type+':', first_NP
+        print
 
     first_NP_len = 0
     if first_NP:
@@ -353,8 +372,35 @@ def find_np_pos(question, ans, q_type, node_type='NP'):
     # s_np = e_aux+1
     e_np = s_np + first_NP_len
 
-    return s_aux, e_aux, s_np, e_np, first_NP
+    if node_type == 'NP':
+        return s_aux, e_aux, s_np+s_aux, e_np+s_aux, first_NP
+    elif node_type == 'VP':
+        return s_aux, e_aux, s_np+e_aux, e_np+e_aux, first_NP
+    else:
+        return s_aux, e_aux, s_np, e_np, first_NP
 
+
+# find the WHNP node
+def find_whnp_pos(question):
+    tree = get_parse_tree(question)
+    # tree.pretty_print()
+    subtree = find_first_subtree(tree, 'WHNP')
+    if subtree == None:
+        return None, None
+    text = subtree.leaves()
+    text = ' '.join(text)
+    s, e = test_pattern(text, question)
+    if s == e:
+        return None, None
+    else:
+        return s, e
+
+# get an nltk tree structure
+def get_parse_tree(sent):
+    sent_parse = loads(server.parse(sent))
+    parse_tree = sent_parse['sentences'][0]['parsetree']
+    tree = Tree.fromstring(parse_tree)
+    return tree
 
 # strip the question mark
 def strip_question_mark(sent):
@@ -455,10 +501,9 @@ def test_pattern(pattern, text):
     return s, e
 
 if __name__ == "__main__":
-    # question = "Does frog fly?"
-    # answer = "no"
+    # question = "what does he refer to when he says that?"
+    # answer = "ice"
     # sent = qa2hypo(question, answer)
-    # print(sent)
 
     qa2hypo_test(get_args())
 
