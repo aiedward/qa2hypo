@@ -59,7 +59,7 @@ QUESTION_TYPE = 3
 # import importdir
 # importdir.do("/home/anglil/csehomedir/projects/dqa/stanford-corenlp-python", globals())
 
-sys.path.insert(0, '/home/anglil/csehomedir/projects/dqa/dqa-eccv16/stanford-corenlp-python')
+sys.path.insert(0, './stanford-corenlp-python')
 import jsonrpc
 from simplejson import loads
 server = jsonrpc.ServerProxy(jsonrpc.JsonRpc20(), jsonrpc.TransportTcpIp(addr=("127.0.0.1", 8080)))
