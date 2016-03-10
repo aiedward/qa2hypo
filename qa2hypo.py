@@ -138,7 +138,7 @@ def get_question_type(question):
     return 'none of these'
 
 # rule based qa2hypo transformation
-def rule_based_transform(question, ans, q_type):
+def rule_based_transform(question, ans, q_type, corenlp):
     if q_type == QUESTION_TYPES[0]:
         s, e = test_pattern(q_type, question)
         hypo = replace(question, s, e, ans)
