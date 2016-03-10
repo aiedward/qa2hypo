@@ -46,7 +46,7 @@ QUESTION_TYPES = ['__+', \
 # -1: don't sample randomly, sample by question type
 # 0: sample the inverse of all the question types
 # not -1 or 0: sample by question type
-SAMPLE_TYPE = -1
+SAMPLE_TYPE = 200
 # used when SAMPLE_TYPE == -1
 QUESTION_TYPE = 3
 
@@ -71,7 +71,7 @@ def qa2hypo_test(args):
     qa_path = os.path.join(root_dir, 'qa_pairs.json')
     qa_res_path = os.path.join(root_dir, 'qa_res.json')
 
-    print "Loading json files ..."
+    print("Loading json files ...")
     qa_pairs = json.load(open(qa_path, 'rb'))
     qa_pairs_list = qa_pairs['qa_pairs']
 
@@ -98,20 +98,20 @@ def qa2hypo_test(args):
 
         if not re.search('what '+AUX_V_DOESONLY_REGEX, question) and not re.search('what '+AUX_V_DO_REGEX, question):
 
-            print 'Question:', question
-            print 'Answer:', ans
+            print('Question:', question)
+            print('Answer:', ans)
 
             # test_patterns([q_type], question)
             sent = rule_based_transform(question, ans, q_type)
           
-            print 'Result:', sent
+            print('Result:', sent)
             res.append({'Question':question, 'Answer':ans, 'Result':sent})
 
             ctr += 1
-            print "--------------------------------------"
+            print("--------------------------------------")
     
-    print ctr
-    print "Dumping json files ..."
+    print(ctr)
+    print("Dumping json files ...")
     json.dump(res, open(qa_res_path, 'wb'))
 
 
@@ -119,14 +119,14 @@ def qa2hypo_test(args):
 def qa2hypo(question, answer):
     question = question.lower()
     answer = answer.lower().strip('.')
-    print 'Question:', question
-    print 'Answer:', answer
+    print('Question:', question)
+    print('Answer:', answer)
 
     # determine the question type:
     q_type = get_question_type(question)
 
     sent = rule_based_transform(question, answer, q_type)
-    print 'Result:', sent
+    print('Result:', sent)
     return sent
 
 
@@ -174,14 +174,14 @@ def rule_based_transform(question, ans, q_type):
             if re.search('what '+AUX_V_DOESONLY_REGEX, question):
                 s_aux, e_aux, s_vp, e_vp, first_VP=find_np_pos(question, ans, 'what '+AUX_V_DOESONLY_REGEX, node_type='VP', if_root_node=True)
                 hypo = replace(question, e_vp, e_vp, ' '+ans+' ')
-                print 'hypo:', hypo
+                print('hypo:', hypo)
                 hypo = replace(hypo, s_aux, e_aux, '')
                 hypo = strip_nonalnum_re(hypo)
                 
             elif re.search('what '+AUX_V_DO_REGEX, question):
                 s_aux, e_aux, s_vp, e_vp, first_VP=find_np_pos(question, ans, 'what '+AUX_V_DO_REGEX, node_type='VP', if_root_node=True)
                 hypo = replace(question, e_vp, e_vp, ' '+ans+' ')
-                print 'hypo:', hypo
+                print('hypo:', hypo)
                 hypo = replace(hypo, s_aux, e_aux, '')
                 hypo = strip_nonalnum_re(hypo)
                 
@@ -309,8 +309,8 @@ def find_or_pos(question, ans, q_type):
         if ans in candidate:
             candidate_chosen = candidate
             break
-    print "candidates_list:", candidates_list
-    print "candidate_chosen:", candidate_chosen
+    print("candidates_list:", candidates_list)
+    print("candidate_chosen:", candidate_chosen)
 
     s0, e0 = test_pattern(candidates_list[0].strip(), question)
     s1, e1 = test_pattern(candidates_list[-1].strip(), question)
@@ -326,20 +326,20 @@ def find_first_root(tree, node_type):
     a = find_first_subtree(tree, node_type)
     if a == None:
         return None
-    print a[0].label()
+    # print a[0].label()
     return a[0]
 
 # find the positions of the aux_v and the first noun
 def find_np_pos(question, ans, q_type, node_type='NP', if_root_node=False):
     s_aux, e_aux = test_pattern(q_type, question)
-    print '  %2d : %2d = "%s"' % (s_aux, e_aux-1, question[s_aux:e_aux])
+    # print '  %2d : %2d = "%s"' % (s_aux, e_aux-1, question[s_aux:e_aux])
     
     if node_type=='NP':
         question = question[s_aux:]
     elif node_type=='VP':
         question = question[e_aux:]
 
-    print "Shortened question:", question
+    # print "Shortened question:", question
 
     tree = get_parse_tree(question)
     # tree.pretty_print()
@@ -360,8 +360,8 @@ def find_np_pos(question, ans, q_type, node_type='NP', if_root_node=False):
             if root != None:
                 first_NP = ' '.join(root.leaves())
 
-        print node_type+':', first_NP
-        print
+        # print node_type+':', first_NP
+        # print
 
     first_NP_len = 0
     if first_NP:
@@ -475,18 +475,18 @@ def test_patterns(patterns, text):
 
     # Look for each pattern in the text and print the results
     for pattern in patterns:
-        print
-        print 'Matching "%s"' % pattern
+        # print
+        # print 'Matching "%s"' % pattern
         # --- regex ---
         for match in re.finditer(pattern, text):
             s = match.start()
             e = match.end()
-            print '  %2d : %2d = "%s"' % \
-                (s, e-1, text[s:e])
+            # print '  %2d : %2d = "%s"' % (s, e-1, text[s:e])
+            
             # print '    Groups:', match.groups()
             # if match.groupdict():
             #     print '    Named groups:', match.groupdict()
-            print
+            # print
     return
 
 # for return purpose
