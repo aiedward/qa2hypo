@@ -102,7 +102,7 @@ def qa2hypo_test(args):
             print('Answer:', ans)
 
             # test_patterns([q_type], question)
-            sent = rule_based_transform(question, ans, q_type)
+            sent = rule_based_transform(question, ans, q_type, corenlp)
           
             print('Result:', sent)
             res.append({'Question':question, 'Answer':ans, 'Result':sent})
@@ -116,7 +116,7 @@ def qa2hypo_test(args):
 
 
 # turn qa_pairs into hypotheses
-def qa2hypo(question, answer):
+def qa2hypo(question, answer, corenlp):
     question = question.lower()
     answer = answer.lower().strip('.')
     print('Question:', question)
@@ -125,7 +125,7 @@ def qa2hypo(question, answer):
     # determine the question type:
     q_type = get_question_type(question)
 
-    sent = rule_based_transform(question, answer, q_type)
+    sent = rule_based_transform(question, answer, q_type, corenlp)
     print('Result:', sent)
     return sent
 
@@ -170,32 +170,42 @@ def rule_based_transform(question, ans, q_type):
                 hypo = replace(question, s, e, ans)
 
         elif q_type == QUESTION_TYPES[3]:
-            
-            if re.search('what '+AUX_V_DOESONLY_REGEX, question):
-                s_aux, e_aux, s_vp, e_vp, first_VP=find_np_pos(question, ans, 'what '+AUX_V_DOESONLY_REGEX, node_type='VP', if_root_node=True)
-                hypo = replace(question, e_vp, e_vp, ' '+ans+' ')
-                print('hypo:', hypo)
-                hypo = replace(hypo, s_aux, e_aux, '')
-                hypo = strip_nonalnum_re(hypo)
-                
-            elif re.search('what '+AUX_V_DO_REGEX, question):
-                s_aux, e_aux, s_vp, e_vp, first_VP=find_np_pos(question, ans, 'what '+AUX_V_DO_REGEX, node_type='VP', if_root_node=True)
-                hypo = replace(question, e_vp, e_vp, ' '+ans+' ')
-                print('hypo:', hypo)
-                hypo = replace(hypo, s_aux, e_aux, '')
-                hypo = strip_nonalnum_re(hypo)
-                
+            if corenlp:
+                if re.search('what '+AUX_V_DOESONLY_REGEX, question):
+                    s_aux, e_aux, s_vp, e_vp, first_VP=find_np_pos(question, ans, 'what '+AUX_V_DOESONLY_REGEX, node_type='VP', if_root_node=True)
+                    hypo = replace(question, e_vp, e_vp, ' '+ans+' ')
+                    print('hypo:', hypo)
+                    hypo = replace(hypo, s_aux, e_aux, '')
+                    hypo = strip_nonalnum_re(hypo)
+                    
+                elif re.search('what '+AUX_V_DO_REGEX, question):
+                    s_aux, e_aux, s_vp, e_vp, first_VP=find_np_pos(question, ans, 'what '+AUX_V_DO_REGEX, node_type='VP', if_root_node=True)
+                    hypo = replace(question, e_vp, e_vp, ' '+ans+' ')
+                    print('hypo:', hypo)
+                    hypo = replace(hypo, s_aux, e_aux, '')
+                    hypo = strip_nonalnum_re(hypo)
+                    
+                else:
+                    s, e = find_whnp_pos(question)
+                    if not s and not e:
+                        s, e = test_pattern('what', question)
+                    hypo = replace(question, s, e, ans)
+
             else:
-                s, e = find_whnp_pos(question)
-                if not s and not e:
-                    s, e = test_pattern('what', question)
+                s, e = test_pattern('what', question)
                 hypo = replace(question, s, e, ans)
+                hypo = strip_nonalnum_re(hypo)
 
         elif q_type == QUESTION_TYPES[4]:
-            s, e = find_whnp_pos(question)
-            if not s and not e:
+            if corenlp:
+                s, e = find_whnp_pos(question)
+                if not s and not e:
+                    s, e = test_pattern('which', question)
+                hypo = replace(question, s, e, ans)
+            else:
                 s, e = test_pattern('which', question)
-            hypo = replace(question, s, e, ans)
+                hypo = replace(question, s, e, ans)
+                hypo = strip_nonalnum_re(hypo)
 
         elif q_type == QUESTION_TYPES[5]:
             s, e = test_pattern('(who)|(whom)', question)
@@ -222,36 +232,41 @@ def rule_based_transform(question, ans, q_type):
         # if starting with aux_v, exchange the Verb and Noun
         # if it is an or question, choose the one that heuristically matches the answer
         elif q_type == QUESTION_TYPES[10]:
-            # if re.search('(yes, )|(no, )', ans):
-            #     s, e = test_pattern('(yes, )|(no, )', ans)
-            #     hypo = replace(ans, s, e, '')
-            # elif ' or ' in question:
-            #     hypo = ans
-            # elif re.search('yes\W??', ans):
-            #     s, e = test_pattern('(\A'+AUX_V_REGEX+' )|(([!"#$%&()*+,-./:;<=>?@\[\\\]^_`{|}~]){1} '+AUX_V_REGEX+' )', question)
-            #     hypo = replace(question, s, e, "")
-            # elif re.search('no\W??', ans):
-            #     s, e = test_pattern('(\A'+AUX_V_REGEX+' )|(([!"#$%&()*+,-./:;<=>?@\[\\\]^_`{|}~]){1} '+AUX_V_REGEX+' )', question)
-            #     hypo = "not "+replace(question, s, e, "")
-
-            if re.search('\A(((yes)\W+)|((yes)$))', ans):
-                s_aux, e_aux, s_np, e_np, first_NP = find_np_pos(question, ans, q_type)
-                hypo = replace(question, s_aux, e_np, first_NP + ' ' + question[s_aux:e_aux-1] + ' ')
-            
-            elif re.search('\A(((no)\W+)|((no)$))', ans):
-                s_aux, e_aux, s_np, e_np, first_NP = find_np_pos(question, ans, q_type)
-                hypo = replace(question, s_aux, e_np, first_NP + ' ' + question[s_aux:e_aux] + 'not ')
-
-            elif re.search(' or ', question):
-                s_aux, e_aux, s_np, e_np, first_NP = find_np_pos(question, ans, q_type)
-                hypo = replace(question, s_aux, e_np, first_NP + ' ' + question[s_aux:e_aux-1] + ' ')
-                s_candidate, e_candidate, candidate = find_or_pos(hypo, ans, q_type)
-                hypo = replace(hypo, s_candidate, e_candidate, candidate)
-
+            if not corenlp:
+                if re.search('(yes, )|(no, )', ans):
+                    s, e = test_pattern('(yes, )|(no, )', ans)
+                    hypo = replace(ans, s, e, '')
+                elif ' or ' in question:
+                    hypo = ans
+                elif re.search('yes\W??', ans):
+                    s, e = test_pattern('(\A'+AUX_V_REGEX+' )|(([!"#$%&()*+,-./:;<=>?@\[\\\]^_`{|}~]){1} '+AUX_V_REGEX+' )', question)
+                    hypo = replace(question, s, e, "")
+                elif re.search('no\W??', ans):
+                    s, e = test_pattern('(\A'+AUX_V_REGEX+' )|(([!"#$%&()*+,-./:;<=>?@\[\\\]^_`{|}~]){1} '+AUX_V_REGEX+' )', question)
+                    hypo = "not "+replace(question, s, e, "")
+                else:
+                    s, e = test_pattern('(\A'+AUX_V_REGEX+' )|(([!"#$%&()*+,-./:;<=>?@\[\\\]^_`{|}~]){1} '+AUX_V_REGEX+' )', question)
+                    hypo = replace(question, s, e, "")
+                    hypo = strip_nonalnum_re(hypo)+' '+ans
             else:
-                s, e = test_pattern('(\A'+AUX_V_REGEX+' )|(([!"#$%&()*+,-./:;<=>?@\[\\\]^_`{|}~]){1} '+AUX_V_REGEX+' )', question)
-                hypo = replace(question, s, e, "")
-                hypo = strip_nonalnum_re(hypo)+' '+ans
+                if re.search('\A(((yes)\W+)|((yes)$))', ans):
+                    s_aux, e_aux, s_np, e_np, first_NP = find_np_pos(question, ans, q_type)
+                    hypo = replace(question, s_aux, e_np, first_NP + ' ' + question[s_aux:e_aux-1] + ' ')
+                
+                elif re.search('\A(((no)\W+)|((no)$))', ans):
+                    s_aux, e_aux, s_np, e_np, first_NP = find_np_pos(question, ans, q_type)
+                    hypo = replace(question, s_aux, e_np, first_NP + ' ' + question[s_aux:e_aux] + 'not ')
+
+                elif re.search(' or ', question):
+                    s_aux, e_aux, s_np, e_np, first_NP = find_np_pos(question, ans, q_type)
+                    hypo = replace(question, s_aux, e_np, first_NP + ' ' + question[s_aux:e_aux-1] + ' ')
+                    s_candidate, e_candidate, candidate = find_or_pos(hypo, ans, q_type)
+                    hypo = replace(hypo, s_candidate, e_candidate, candidate)
+
+                else:
+                    s, e = test_pattern('(\A'+AUX_V_REGEX+' )|(([!"#$%&()*+,-./:;<=>?@\[\\\]^_`{|}~]){1} '+AUX_V_REGEX+' )', question)
+                    hypo = replace(question, s, e, "")
+                    hypo = strip_nonalnum_re(hypo)+' '+ans
 
         else:
             hypo = strip_nonalnum_re(question)+' '+ans
@@ -322,6 +337,7 @@ def find_first_subtree(tree, node_type):
     for subtree in tree.subtrees(filter=lambda x: x.label() == node_type):
         return subtree
 
+# find the root of the first subtree of a certain node type  
 def find_first_root(tree, node_type):
     a = find_first_subtree(tree, node_type)
     if a == None:
