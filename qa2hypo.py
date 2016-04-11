@@ -9,11 +9,9 @@ import sys
 from nltk.tree import *
 
 
-def get_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('root_dir')
-    ARGS = parser.parse_args()
-    return ARGS
+###############################################################
+# beginning of the global variables
+###############################################################
 
 # auxiliary verbs, from https://en.wikipedia.org/wiki/Auxiliary_verb
 AUX_V = ['am', 'is', 'are', 'can', 'could', 'dare', 'do', 'does', 'did', 'have', 'had', 'may', 'might', 'must', 'need', 'shall', 'should', 'will', 'would']
@@ -26,8 +24,7 @@ AUX_V_DOESONLY = ['does', 'did']
 AUX_V_DOESONLY_REGEX = '('+'|'.join(['('+AUX_V_DOESONLY[i]+')' for i in range(len(AUX_V_DOESONLY))])+')'
 AUX_V_DO_REGEX = '(do) '
 
-
-# global variables
+# question types
 QUESTION_TYPES = ['__+', \
 '(when '+AUX_V_REGEX+'.*)|(when\?)', \
 '(where '+AUX_V_REGEX+'.*)|(where\?)', \
@@ -41,35 +38,47 @@ QUESTION_TYPES = ['__+', \
 '(\A'+AUX_V_REGEX+' )|(([!"#$%&()*+,-./:;<=>?@\[\\\]^_`{|}~]){1} '+AUX_V_REGEX+' )'
 ]
 
-
 # SAMPLE_TYPE:
 # -1: don't sample randomly, sample by question type
 # 0: sample the inverse of all the question types
 # not -1 or 0: sample by question type
 SAMPLE_TYPE = -1
+
 # used when SAMPLE_TYPE == -1
 QUESTION_TYPE = 10
 
+# whether to use the Stanford parser in the transformation
+corenlp = True
+
+# whether to print things when running
+QUEIT = False
 
 # for parsing sentences using the stanford core nlp package with a python wrapper
 # from https://github.com/dasmith/stanford-corenlp-python
 # this is effective after launching the server by in parallel doing
 # python corenlp.py
-
-# import importdir
-# importdir.do("/home/anglil/csehomedir/projects/dqa/stanford-corenlp-python", globals())
-
 sys.path.insert(0, './stanford-corenlp-python')
 import jsonrpc
 from simplejson import loads
 server = jsonrpc.ServerProxy(jsonrpc.JsonRpc20(), jsonrpc.TransportTcpIp(addr=("127.0.0.1", 8080)))
 
+###############################################################
+# beginning of the global variables
+###############################################################
+
+# parse the arguments of the program
+def get_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('root_dir')
+    ARGS = parser.parse_args()
+    return ARGS
 
 # turn qa_pairs into hypotheses, test
 def qa2hypo_test(args):
-    corenlp = True
-    QUEIT = True
+    
 
+    # the directories as parameters
+    # using ~/csehomedir/projects/dqa/dqa-data/shining3-vqa for now
     root_dir = args.root_dir
     qa_path = os.path.join(root_dir, 'qa_pairs.json')
     qa_res_path = os.path.join(root_dir, 'qa_res.json')
@@ -99,21 +108,23 @@ def qa2hypo_test(args):
         if k != -1:
             q_type = get_question_type(question)
 
-        if not re.search('what '+AUX_V_DOESONLY_REGEX, question) and not re.search('what '+AUX_V_DO_REGEX, question):
+        ###if not re.search('what '+AUX_V_DOESONLY_REGEX, question) and not re.search('what '+AUX_V_DO_REGEX, question):
+        
+        ###
+        if not QUEIT:
+            print('Question:', question)
+            print('Answer:', ans)
 
-            if not QUEIT:
-                print('Question:', question)
-                print('Answer:', ans)
+        # test_patterns([q_type], question)
+        sent = rule_based_transform(question, ans, q_type, corenlp)
+        
+        if not QUEIT:
+            print('Result:', sent)
+            print("--------------------------------------")
+        res.append({'Question':question, 'Answer':ans, 'Result':sent})
 
-            # test_patterns([q_type], question)
-            sent = rule_based_transform(question, ans, q_type, corenlp)
-            
-            if not QUEIT:
-                print('Result:', sent)
-                print("--------------------------------------")
-            res.append({'Question':question, 'Answer':ans, 'Result':sent})
-
-            ctr += 1
+        ctr += 1
+        ###
             
     
     print(ctr)
