@@ -39,9 +39,9 @@ QUESTION_TYPES = ['__+', \
 ]
 
 # SAMPLE_TYPE:
-# -1: don't sample randomly, sample by question type
+# -1: sample by question type
 # 0: sample the complementary set of the listed question types
-# not -1 or 0: sample by question type
+# not -1 or 0: sample randomly
 SAMPLE_TYPE = -1
 
 # used when SAMPLE_TYPE == -1
