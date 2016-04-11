@@ -40,7 +40,7 @@ QUESTION_TYPES = ['__+', \
 
 # SAMPLE_TYPE:
 # -1: don't sample randomly, sample by question type
-# 0: sample the inverse of all the question types
+# 0: sample the complementary set of the listed question types
 # not -1 or 0: sample by question type
 SAMPLE_TYPE = -1
 
@@ -63,7 +63,7 @@ from simplejson import loads
 server = jsonrpc.ServerProxy(jsonrpc.JsonRpc20(), jsonrpc.TransportTcpIp(addr=("127.0.0.1", 8080)))
 
 ###############################################################
-# beginning of the global variables
+# end of the global variables
 ###############################################################
 
 # parse the arguments of the program
@@ -73,12 +73,10 @@ def get_args():
     ARGS = parser.parse_args()
     return ARGS
 
-# turn qa_pairs into hypotheses, test
-def qa2hypo_test(args):
-    
-
-    # the directories as parameters
-    # using ~/csehomedir/projects/dqa/dqa-data/shining3-vqa for now
+# pre-processing
+# using ~/csehomedir/projects/dqa/dqa-data/shining3-vqa for diagram question answering
+# using ~/csehomedir/projects/dqa/math-data for math question answering
+def pre_proc(args):
     root_dir = args.root_dir
     qa_path = os.path.join(root_dir, 'qa_pairs.json')
     qa_res_path = os.path.join(root_dir, 'qa_res.json')
@@ -87,10 +85,26 @@ def qa2hypo_test(args):
     qa_pairs = json.load(open(qa_path, 'rb'))
     qa_pairs_list = qa_pairs['qa_pairs']
 
+    return qa_pairs_list
+
+# post-processing
+# using ~/csehomedir/projects/dqa/dqa-data/shining3-vqa for diagram question answering
+# using ~/csehomedir/projects/dqa/math-data for math question answering
+def post_proc(args):
+    root_dir = args.root_dir
+    qa_path = os.path.join(root_dir, 'qa_pairs.json')
+    qa_res_path = os.path.join(root_dir, 'qa_res.json')
+
+    print("Dumping json files ...")
+    json.dump(res, open(qa_res_path, 'wb'))
+
+# turn qa_pairs into hypotheses, test
+def qa2hypo_test(qa_pairs_list):
+
     # number of samples and the types of questions to sample
     k = SAMPLE_TYPE
     
-    # execute the sampling (for the purpose of examining the result)
+    # sampling question type (for examining the result)
     q_type = QUESTION_TYPES[QUESTION_TYPE]
     qa_pairs_list = sample_qa(qa_pairs_list, k, q_type) # set the case lower in the function for questions
     
@@ -121,18 +135,18 @@ def qa2hypo_test(args):
         if not QUEIT:
             print('Result:', sent)
             print("--------------------------------------")
+
         res.append({'Question':question, 'Answer':ans, 'Result':sent})
 
         ctr += 1
         ###
             
-    
     print(ctr)
-    print("Dumping json files ...")
-    json.dump(res, open(qa_res_path, 'wb'))
+    return res
+    
 
 
-# turn qa_pairs into hypotheses
+# turn qa_pairs into hypotheses (core module)
 def qa2hypo(question, answer, corenlp, quiet):
     question = question.lower()
     answer = answer.lower().strip('.')
@@ -295,6 +309,86 @@ def rule_based_transform(question, ans, q_type, corenlp):
     hypo = strip_question_mark(hypo)
     return hypo
 
+# sample sentences
+def sample_qa(qa_pairs_list, k, q_type):
+    l = range(len(qa_pairs_list))
+    l_sampled = []
+
+    # random sampling
+    if k != -1 and k != 0:
+        l_sampled = random.sample(l, k)
+
+    # sampling the complementary set
+    elif k == 0:
+        return sample_qa_complementary(qa_pairs_list)
+
+    # sample by question type (k == -1)
+    else:
+        for num in l:
+            q = qa_pairs_list[num]['question'].lower() # use the lower case for all
+            # --- regex ---
+            if re.search(q_type, q):
+                l_sampled.append(num)
+
+    return [qa_pairs_list[i] for i in l_sampled]
+
+# sample sentences -- the complementary set; this is a helper to sample_qa
+def sample_qa_complementary(qa_pairs_list):
+    l = range(len(qa_pairs_list))
+    l_sampled = []
+
+    for num in l:
+        q = qa_pairs_list[num]['question'].lower() # use the lower case for all
+        flag = 0
+        for q_type in QUESTION_TYPES:
+            # --- regex ---
+            if re.search(q_type, q) != None:
+                flag = 1
+                break
+        if flag == 0:
+            l_sampled.append(num)
+
+    return [qa_pairs_list[i] for i in l_sampled]
+
+
+# for print purpose
+def test_patterns(patterns, text):
+    """Given source text and a list of patterns, look for
+    matches for each pattern within the text and print
+    them to stdout.
+    """
+    # Show the character positions and input text
+    # print
+    # print ''.join(str(i/10 or ' ') for i in range(len(text)))
+    # print ''.join(str(i%10) for i in range(len(text)))
+    # print text
+
+    # Look for each pattern in the text and print the results
+    for pattern in patterns:
+        # print
+        # print 'Matching "%s"' % pattern
+        # --- regex ---
+        for match in re.finditer(pattern, text):
+            s = match.start()
+            e = match.end()
+            # print '  %2d : %2d = "%s"' % (s, e-1, text[s:e])
+            
+            # print '    Groups:', match.groups()
+            # if match.groupdict():
+            #     print '    Named groups:', match.groupdict()
+            # print
+    return
+
+# for return purpose
+def test_pattern(pattern, text):
+    match = re.search(pattern, text)
+    pos = len(text)-1
+    if not match:
+        return pos, pos
+    s = match.start()
+    e = match.end()
+    # print '  %2d : %2d = "%s"' % (s, e-1, text[s:e])
+    return s, e
 
 # find the positions of the NPs or VPs around 'or'
 def find_or_pos(question, ans, q_type):
@@ -456,86 +550,7 @@ def replace(text, start, end, replacement):
     text_right = text[end:]
     return text_left+replacement+text_right
 
-# sample sentences
-def sample_qa(qa_pairs_list, k, q_type):
-    l = range(len(qa_pairs_list))
-    l_sampled = []
 
-    # random sampling
-    if k != -1 and k != 0:
-        l_sampled = random.sample(l, k)
-
-    # inverse sampling
-    elif k == 0:
-        return sample_qa_inverse(qa_pairs_list)
-
-    # sample by question type (k == -1)
-    else:
-        for num in l:
-            q = qa_pairs_list[num]['question'].lower() # use the lower case for all
-            # --- regex ---
-            if re.search(q_type, q):
-                l_sampled.append(num)
-
-    return [qa_pairs_list[i] for i in l_sampled]
-
-# sample sentences -- the inverse set; this is a helper to sample_qa
-def sample_qa_inverse(qa_pairs_list):
-    l = range(len(qa_pairs_list))
-    l_sampled = []
-
-    for num in l:
-        q = qa_pairs_list[num]['question'].lower() # use the lower case for all
-        flag = 0
-        for q_type in QUESTION_TYPES:
-            # --- regex ---
-            if re.search(q_type, q) != None:
-                flag = 1
-                break
-        if flag == 0:
-            l_sampled.append(num)
-
-    return [qa_pairs_list[i] for i in l_sampled]
-
-
-# for print purpose
-def test_patterns(patterns, text):
-    """Given source text and a list of patterns, look for
-    matches for each pattern within the text and print
-    them to stdout.
-    """
-    # Show the character positions and input text
-    # print
-    # print ''.join(str(i/10 or ' ') for i in range(len(text)))
-    # print ''.join(str(i%10) for i in range(len(text)))
-    # print text
-
-    # Look for each pattern in the text and print the results
-    for pattern in patterns:
-        # print
-        # print 'Matching "%s"' % pattern
-        # --- regex ---
-        for match in re.finditer(pattern, text):
-            s = match.start()
-            e = match.end()
-            # print '  %2d : %2d = "%s"' % (s, e-1, text[s:e])
-            
-            # print '    Groups:', match.groups()
-            # if match.groupdict():
-            #     print '    Named groups:', match.groupdict()
-            # print
-    return
-
-# for return purpose
-def test_pattern(pattern, text):
-    match = re.search(pattern, text)
-    pos = len(text)-1
-    if not match:
-        return pos, pos
-    s = match.start()
-    e = match.end()
-    # print '  %2d : %2d = "%s"' % (s, e-1, text[s:e])
-    return s, e
 
 if __name__ == "__main__":
     # question = "what does he refer to when he says that?"
