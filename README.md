@@ -1,5 +1,5 @@
 # qa2hypo
-Transfer question ans answer pairs into assertive sentences
+Transfer question and answer pairs into assertive sentences.
 
 ## Quick start
 1. Download and install the nltk package that is used in the project to parse parse-trees.
