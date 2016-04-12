@@ -5,8 +5,9 @@ import os
 import random
 import re
 import string
-import sys
-from nltk.tree import *
+
+from helper import *
+
 
 
 ###############################################################
@@ -38,11 +39,15 @@ QUESTION_TYPES = ['__+', \
 '(\A'+AUX_V_REGEX+' )|(([!"#$%&()*+,-./:;<=>?@\[\\\]^_`{|}~]){1} '+AUX_V_REGEX+' )'
 ]
 
+Q_ALIAS = 'question'
+A_ALIAS = 'ans'
+S_ALIAS = 'statement'
+
 # SAMPLE_TYPE:
 # -1: sample by question type
 # 0: sample the complementary set of the listed question types
-# not -1 or 0: sample randomly
-SAMPLE_TYPE = -1
+# not -1 or 0: sample randomly, the value denoting the sample size. QUESTION_TYPE ignored
+SAMPLE_TYPE = 50
 
 # used when SAMPLE_TYPE == -1
 QUESTION_TYPE = 10
@@ -53,18 +58,10 @@ corenlp = True
 # whether to print things when running
 QUEIT = False
 
-# for parsing sentences using the stanford core nlp package with a python wrapper
-# from https://github.com/dasmith/stanford-corenlp-python
-# this is effective after launching the server by in parallel doing
-# python corenlp.py
-sys.path.insert(0, './stanford-corenlp-python')
-import jsonrpc
-from simplejson import loads
-server = jsonrpc.ServerProxy(jsonrpc.JsonRpc20(), jsonrpc.TransportTcpIp(addr=("127.0.0.1", 8080)))
-
 ###############################################################
 # end of the global variables
 ###############################################################
+
 
 # parse the arguments of the program
 def get_args():
@@ -76,21 +73,25 @@ def get_args():
 # pre-processing
 # using ~/csehomedir/projects/dqa/dqa-data/shining3-vqa for diagram question answering
 # using ~/csehomedir/projects/dqa/math-data for math question answering
-def pre_proc(args):
+def pre_proc(args, domain):
     root_dir = args.root_dir
     qa_path = os.path.join(root_dir, 'qa_pairs.json')
     qa_res_path = os.path.join(root_dir, 'qa_res.json')
 
     print("Loading json files ...")
     qa_pairs = json.load(open(qa_path, 'rb'))
-    qa_pairs_list = qa_pairs['qa_pairs']
+
+    if domain == 'diagram':
+        qa_pairs_list = qa_pairs['qa_pairs']
+    elif domain == 'math':
+        qa_pairs_list = qa_pairs
 
     return qa_pairs_list
 
 # post-processing
 # using ~/csehomedir/projects/dqa/dqa-data/shining3-vqa for diagram question answering
 # using ~/csehomedir/projects/dqa/math-data for math question answering
-def post_proc(args):
+def post_proc(args, res, domain):
     root_dir = args.root_dir
     qa_path = os.path.join(root_dir, 'qa_pairs.json')
     qa_res_path = os.path.join(root_dir, 'qa_res.json')
@@ -98,9 +99,21 @@ def post_proc(args):
     print("Dumping json files ...")
     json.dump(res, open(qa_res_path, 'wb'))
 
-# turn qa_pairs into hypotheses, test
-def qa2hypo_test(qa_pairs_list):
+    qa_res_path_2 = os.path.join(root_dir, 'qa_res.txt')
+    with open(qa_res_path_2, 'wb') as fw:
+        for i in res:
+            fw.write('\nquestion: ')
+            fw.write((i[Q_ALIAS]).encode('utf-8').strip())
+            fw.write('\nanswer: ')
+            fw.write(str(i[A_ALIAS]))
+            fw.write('\nresult: ')
+            fw.write((i[S_ALIAS]).encode('utf-8').strip())
+            fw.write('\n-----------------')
 
+
+
+# turn qa_pairs into hypotheses, test (can sample questions)
+def qa2hypo_test(qa_pairs_list):
     # number of samples and the types of questions to sample
     k = SAMPLE_TYPE
     
@@ -113,30 +126,17 @@ def qa2hypo_test(qa_pairs_list):
 
     ctr = 0
     for item in qa_pairs_list:
-        question = item['question']
-        ans = item['ans']
-        question = question.lower()
-        ans = ans.lower().strip('.')
+        question = item[Q_ALIAS]
+        ans = item[A_ALIAS]
 
-        # determine the question type:
-        if k != -1:
+        # sample by question type when k = -1 
+        if k != -1 and k != 0:
             q_type = get_question_type(question)
 
         ###if not re.search('what '+AUX_V_DOESONLY_REGEX, question) and not re.search('what '+AUX_V_DO_REGEX, question):
-        
-        ###
-        if not QUEIT:
-            print('Question:', question)
-            print('Answer:', ans)
+        sent = rule_based_transform(question, ans, q_type, corenlp, QUEIT)
 
-        # test_patterns([q_type], question)
-        sent = rule_based_transform(question, ans, q_type, corenlp)
-        
-        if not QUEIT:
-            print('Result:', sent)
-            print("--------------------------------------")
-
-        res.append({'Question':question, 'Answer':ans, 'Result':sent})
+        res.append({Q_ALIAS:question, A_ALIAS:ans, S_ALIAS:sent})
 
         ctr += 1
         ###
@@ -145,35 +145,38 @@ def qa2hypo_test(qa_pairs_list):
     return res
     
 
-
 # turn qa_pairs into hypotheses (core module)
 def qa2hypo(question, answer, corenlp, quiet):
-    question = question.lower()
-    answer = answer.lower().strip('.')
-    if not quiet:
-        print('Question:', question)
-        print('Answer:', answer)
-
+    
     # determine the question type:
     q_type = get_question_type(question)
 
-    sent = rule_based_transform(question, answer, q_type, corenlp)
+    # transform the question answer pair into a statement
+    sent = rule_based_transform(question, answer, q_type, corenlp, quiet)
 
-    if not quiet:
-        print('Result:', sent)
-        print("--------------------------------------")
     return sent
 
 
 # determine the question type
 def get_question_type(question):
+    question = q_norm(question)
+
     for q_type in QUESTION_TYPES:
         if re.search(q_type, question):
             return q_type
     return 'none of these'
 
 # rule based qa2hypo transformation
-def rule_based_transform(question, ans, q_type, corenlp):
+def rule_based_transform(question, ans, q_type, corenlp, quiet):
+    if not quiet:
+        print('Question:', question)
+        print('Answer:', ans)
+
+    # question and answer normalization
+    question = q_norm(question)
+    ans = a_norm(ans)
+
+    # type based transformation
     if q_type == QUESTION_TYPES[0]:
         s, e = test_pattern(q_type, question)
         hypo = replace(question, s, e, ans)
@@ -248,13 +251,22 @@ def rule_based_transform(question, ans, q_type, corenlp):
 
         elif q_type == QUESTION_TYPES[6]:
             s, e = test_pattern('why', question)
-            hypo = strip_question_mark(question)+', '+ans
+            hypo = question+', '+ans
             if not re.search('because', ans, re.IGNORECASE):
-                hypo = strip_question_mark(question)+', because '+ans
+                hypo = question+', because '+ans
 
         elif q_type == QUESTION_TYPES[7]:
-            s, e = test_pattern('(how many)|(how much)', question)
-            hypo = replace(question, s, e, ans)
+            if corenlp:
+                s, e = find_whnp_pos(question)
+                if not s and not e:
+                    s, e = test_pattern('(how many)|(how much)', question)
+                hypo = replace(question, s, e, ans)
+
+                exp_how_many(question, q_type)
+  
+            else:
+                s, e = test_pattern('(how many)|(how much)', question)
+                hypo = replace(question, s, e, ans)
 
         elif q_type == QUESTION_TYPES[8]:
             s, e = test_pattern('(\Ahow )|(\W+how )', question)
@@ -306,7 +318,10 @@ def rule_based_transform(question, ans, q_type, corenlp):
         else:
             hypo = strip_nonalnum_re(question)+' '+ans
 
-    hypo = strip_question_mark(hypo)
+    if not quiet:
+        print('Result:', hypo)
+        print("--------------------------------------")
+
     return hypo
 
 # sample sentences
@@ -351,211 +366,21 @@ def sample_qa_complementary(qa_pairs_list):
     return [qa_pairs_list[i] for i in l_sampled]
 
 
-# for print purpose
-def test_patterns(patterns, text):
-    """Given source text and a list of patterns, look for
-    matches for each pattern within the text and print
-    them to stdout.
-    """
-    # Show the character positions and input text
-    # print
-    # print ''.join(str(i/10 or ' ') for i in range(len(text)))
-    # print ''.join(str(i%10) for i in range(len(text)))
-    # print text
-
-    # Look for each pattern in the text and print the results
-    for pattern in patterns:
-        # print
-        # print 'Matching "%s"' % pattern
-        # --- regex ---
-        for match in re.finditer(pattern, text):
-            s = match.start()
-            e = match.end()
-            # print '  %2d : %2d = "%s"' % (s, e-1, text[s:e])
-            
-            # print '    Groups:', match.groups()
-            # if match.groupdict():
-            #     print '    Named groups:', match.groupdict()
-            # print
-    return
-
-# for return purpose
-def test_pattern(pattern, text):
-    match = re.search(pattern, text)
-    pos = len(text)-1
-    if not match:
-        return pos, pos
-    s = match.start()
-    e = match.end()
-    # print '  %2d : %2d = "%s"' % (s, e-1, text[s:e])
-    return s, e
-
-# find the positions of the NPs or VPs around 'or'
-def find_or_pos(question, ans, q_type):
-
-    sent_parse = loads(server.parse(question))
-    parse_tree = sent_parse['sentences'][0]['parsetree']
-    tree = ParentedTree.fromstring(parse_tree)
-    # print the tree
-    # tree.pretty_print()
-
-    or_node = None
-    for subtree in tree.subtrees(filter=lambda x: x.label() == 'CC'):
-        # print "or position:", subtree.leaves()
-        or_node = subtree
-        break
-
-    # left_siblings = []
-    # l = or_node.left_sibling()
-    # while l:
-    #     left_siblings.append(l)
-    #     l = l.left_sibling()
-
-    # right_siblings = []
-    # r = or_node.right_sibling()
-    # while r:
-    #     right_siblings.append(r)
-    #     r = r.right_sibling()
-
-    # print left_siblings
-    # print right_siblings
-
-    or_parent = or_node.parent()
-    candidates_tok = or_parent.leaves()
-    candidates_len = len(' '.join(candidates_tok))
-
-    candidates_list = []
-    item = ''
-    for tok in candidates_tok:
-        if (tok != ',') and (tok != 'or'):
-            item = item + ' ' + tok
-        else:
-            candidates_list.append(item)
-            item = ''
-    candidates_list.append(item)
-
-    candidate_chosen = candidates_list[0]
-    for candidate in candidates_list:
-        if ans in candidate:
-            candidate_chosen = candidate
-            break
-    # print("candidates_list:", candidates_list)
-    # print("candidate_chosen:", candidate_chosen)
-
-    s0, e0 = test_pattern(candidates_list[0].strip(), question)
-    s1, e1 = test_pattern(candidates_list[-1].strip(), question)
-
-    return s0, e1, candidate_chosen
-
-# find the first subtree of a certain node type
-def find_first_subtree(tree, node_type):
-    for subtree in tree.subtrees(filter=lambda x: x.label() == node_type):
-        return subtree
-
-# find the root of the first subtree of a certain node type  
-def find_first_root(tree, node_type):
-    a = find_first_subtree(tree, node_type)
-    if a == None:
-        return None
-    # print a[0].label()
-    return a[0]
-
-# find the positions of the aux_v and the first noun
-def find_np_pos(question, ans, q_type, node_type='NP', if_root_node=False):
-    s_aux, e_aux = test_pattern(q_type, question)
-    # print '  %2d : %2d = "%s"' % (s_aux, e_aux-1, question[s_aux:e_aux])
-    
-    if node_type=='NP':
-        question = question[s_aux:]
-    elif node_type=='VP':
-        question = question[e_aux:]
-
-    # print "Shortened question:", question
-
-    tree = get_parse_tree(question)
-    # tree.pretty_print()
-
-    first_NP = None
-
-    if (node_type == 'NP') or (node_type == 'VP'):
-        # get the whole node
-        if not if_root_node:
-            subtree = find_first_subtree(tree, node_type)
-            # print "whole node:\n", subtree.pretty_print()
-            first_NP = ' '.join(subtree.leaves())
-
-        # get the root node
-        else:
-            root = find_first_root(tree, node_type)
-            # print "root node:\n", root.pretty_print()
-            if root != None:
-                first_NP = ' '.join(root.leaves())
-
-        # print node_type+':', first_NP
-        # print
-
-    first_NP_len = 0
-    if first_NP:
-        first_NP_len = len(first_NP)
-        s_np, e_np = test_pattern((first_NP.split(' '))[0], question)
-    else:
-        s_np = len(question)-1
-    # s_np = e_aux+1
-    e_np = s_np + first_NP_len
-
-    if node_type == 'NP':
-        return s_aux, e_aux, s_np+s_aux, e_np+s_aux, first_NP
-    elif node_type == 'VP':
-        return s_aux, e_aux, s_np+e_aux, e_np+e_aux, first_NP
-    else:
-        return s_aux, e_aux, s_np, e_np, first_NP
-
-
-# find the WHNP node
-def find_whnp_pos(question):
-    tree = get_parse_tree(question)
-    # tree.pretty_print()
-    subtree = find_first_subtree(tree, 'WHNP')
-    if subtree == None:
-        return None, None
-    text = subtree.leaves()
-    text = ' '.join(text)
-    s, e = test_pattern(text, question)
-    if s == e:
-        return None, None
-    else:
-        return s, e
-
-# get an nltk tree structure
-def get_parse_tree(sent):
-    sent_parse = loads(server.parse(sent))
-    parse_tree = sent_parse['sentences'][0]['parsetree']
-    tree = Tree.fromstring(parse_tree)
-    return tree
-
-# strip the question mark
-def strip_question_mark(sent):
-    if sent.endswith('?') or sent.endswith(':'):
-        return sent[:-1]
-    else:
-        return sent
-
-# strip any non alnum characters in the end
-def strip_nonalnum_re(sent):
-    return re.sub(r"^\W+|\W+$", "", sent)
-
-# replace 
-def replace(text, start, end, replacement):
-    text_left = text[:start]
-    text_right = text[end:]
-    return text_left+replacement+text_right
-
-
 
 if __name__ == "__main__":
+    ############################
+    # test on single sentence
+    ############################
+
     # question = "what does he refer to when he says that?"
     # answer = "ice"
     # sent = qa2hypo(question, answer)
 
-    qa2hypo_test(get_args())
+    ############################
+    # test on single sentence
+    ############################
+    a = get_args()
+    qa_pairs_list = pre_proc(a, 'math')
+    res = qa2hypo_test(qa_pairs_list)
+    post_proc(a, res, 'math')
 
