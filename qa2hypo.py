@@ -15,15 +15,15 @@ from helper import *
 ###############################################################
 
 # auxiliary verbs, from https://en.wikipedia.org/wiki/Auxiliary_verb
-AUX_V = ['am', 'is', 'are', 'can', 'could', 'dare', 'do', 'does', 'did', 'have', 'had', 'may', 'might', 'must', 'need', 'shall', 'should', 'will', 'would']
+AUX_V = [r'\bam\b', r'\bis\b', r'\bare\b', r'\bwas\b', r'\bwere\b', r'\bcan\b', r'\bcould\b', r'\bdare\b', r'\bdo\b', r'\bdoes\b', r'\bdid\b', r'\bhave\b', r'\bhad\b', r'\bmay\b', r'\bmight\b', r'\bmust\b', r'\bneed\b', r'\bshall\b', r'\bshould\b', r'\bwill\b', r'\bwould\b']
 AUX_V_REGEX = '('+'|'.join(['('+AUX_V[i]+')' for i in range(len(AUX_V))])+')'
-AUX_V_BE = ['am', 'is', 'are']
+AUX_V_BE = [r'\bam\b', r'\bis\b', r'\bare\b', r'\bwas\b', r'\bwere\b']
 AUX_V_BE_REGEX = '('+'|'.join(['('+AUX_V_BE[i]+')' for i in range(len(AUX_V_BE))])+')'
-AUX_V_DOES = ['can', 'could', 'dare', 'does', 'did', 'have', 'had', 'may', 'might', 'must', 'need', 'shall', 'should', 'will', 'would']
+AUX_V_DOES = [r'\bcan\b', r'\bcould\b', r'\bdare\b', r'\bdoes\b', r'\bdid\b', r'\bhave\b', r'\bhad\b', r'\bmay\b', r'\bmight\b', r'\bmust\b', r'\bneed\b', r'\bshall\b', r'\bshould\b', r'\bwill\b', r'\bwould\b']
 AUX_V_DOES_REGEX = '('+'|'.join(['('+AUX_V_DOES[i]+')' for i in range(len(AUX_V_DOES))])+')'
-AUX_V_DOESONLY = ['does', 'did']
+AUX_V_DOESONLY = [r'\bdoes\b', r'\bdid\b', r'\bdo\b']
 AUX_V_DOESONLY_REGEX = '('+'|'.join(['('+AUX_V_DOESONLY[i]+')' for i in range(len(AUX_V_DOESONLY))])+')'
-AUX_V_DO_REGEX = '(do) '
+# AUX_V_DO_REGEX = '(do) '
 
 # question types
 QUESTION_TYPES = ['__+', \
@@ -187,10 +187,10 @@ def rule_based_transform(question, ans, q_type, corenlp, quiet):
                 s2, e2 = test_pattern('when '+AUX_V_DOES_REGEX, question)
                 hypo = replace(question, s2, e2, '')
                 hypo = strip_nonalnum_re(hypo)+' in '+ans
-            elif re.search('when '+AUX_V_DO_REGEX, question):
-                s3, e3 = test_pattern('when '+AUX_V_DO_REGEX, question)
-                hypo = replace(question, s3, e3, '')
-                hypo = strip_nonalnum_re(hypo)+' in '+ans
+            # elif re.search('when '+AUX_V_DO_REGEX, question):
+            #     s3, e3 = test_pattern('when '+AUX_V_DO_REGEX, question)
+            #     hypo = replace(question, s3, e3, '')
+            #     hypo = strip_nonalnum_re(hypo)+' in '+ans
             else:
                 hypo = replace(question, s, e, ans)
 
@@ -200,31 +200,32 @@ def rule_based_transform(question, ans, q_type, corenlp, quiet):
                 s2, e2 = test_pattern('where '+AUX_V_DOES_REGEX, question)
                 hypo = replace(question, s2, e2, '')
                 hypo = strip_nonalnum_re(hypo)+' at '+ans
-            elif re.search('where '+AUX_V_DO_REGEX, question):
-                s3, e3 = test_pattern('where '+AUX_V_DO_REGEX, question)
-                hypo = replace(question, s3, e3, '')
-                hypo = strip_nonalnum_re(hypo)+' at '+ans
+            # elif re.search('where '+AUX_V_DO_REGEX, question):
+            #     s3, e3 = test_pattern('where '+AUX_V_DO_REGEX, question)
+            #     hypo = replace(question, s3, e3, '')
+            #     hypo = strip_nonalnum_re(hypo)+' at '+ans
             else:
                 hypo = replace(question, s, e, ans)
 
         elif q_type == QUESTION_TYPES[3]:
             if corenlp:
+                # do
                 if re.search('what '+AUX_V_DOESONLY_REGEX, question):
                     s_aux, e_aux, s_vp, e_vp, first_VP=find_np_pos(question, ans, 'what '+AUX_V_DOESONLY_REGEX, node_type='VP', if_root_node=True)
                     hypo = replace(question, e_vp, e_vp, ' '+ans+' ')
                     # print('hypo:', hypo)
                     hypo = replace(hypo, s_aux, e_aux, '')
                     hypo = strip_nonalnum_re(hypo)
-                    
-                elif re.search('what '+AUX_V_DO_REGEX, question):
-                    s_aux, e_aux, s_vp, e_vp, first_VP=find_np_pos(question, ans, 'what '+AUX_V_DO_REGEX, node_type='VP', if_root_node=True)
-                    hypo = replace(question, e_vp, e_vp, ' '+ans+' ')
-                    # print('hypo:', hypo)
-                    hypo = replace(hypo, s_aux, e_aux, '')
-                    hypo = strip_nonalnum_re(hypo)
-                    
+                # # does
+                # elif re.search('what '+AUX_V_DO_REGEX, question):
+                #     s_aux, e_aux, s_vp, e_vp, first_VP=find_np_pos(question, ans, 'what '+AUX_V_DO_REGEX, node_type='VP', if_root_node=True)
+                #     hypo = replace(question, e_vp, e_vp, ' '+ans+' ')
+                #     # print('hypo:', hypo)
+                #     hypo = replace(hypo, s_aux, e_aux, '')
+                #     hypo = strip_nonalnum_re(hypo)
+                # be
                 else:
-                    s, e = find_whnp_pos(question)
+                    s, e = find_whnp_pos(question, 'WHNP')
                     if not s and not e:
                         s, e = test_pattern('what', question)
                     hypo = replace(question, s, e, ans)
@@ -236,7 +237,7 @@ def rule_based_transform(question, ans, q_type, corenlp, quiet):
 
         elif q_type == QUESTION_TYPES[4]:
             if corenlp:
-                s, e = find_whnp_pos(question)
+                s, e = find_whnp_pos(question, 'WHNP')
                 if not s and not e:
                     s, e = test_pattern('which', question)
                 hypo = replace(question, s, e, ans)
@@ -255,15 +256,30 @@ def rule_based_transform(question, ans, q_type, corenlp, quiet):
             if not re.search('because', ans, re.IGNORECASE):
                 hypo = question+', because '+ans
 
+        # how + adj
         elif q_type == QUESTION_TYPES[7]:
             if corenlp:
-                s, e = find_whnp_pos(question)
-                if not s and not e:
-                    s, e = test_pattern('(how many)|(how much)', question)
-                hypo = replace(question, s, e, ans)
+                s, e = test_pattern(q_type, question)
+                question_head = question[:s]
+                question_rear = question[s:]
 
-                exp_how_many(question, q_type)
-  
+                s_aux, e_aux = test_pattern(AUX_V_DOES_REGEX, question_rear)
+                # print question_rear[:e-s]
+                
+                # be
+                if s_aux == e_aux:
+                    hypo = replace(question_rear, s, e, ans)
+                    hypo = question_head + question_rear
+                # do
+                else:
+                    s_0, e_0, s_vp, e_vp, first_VP=find_np_pos(question_rear, ans, AUX_V_DOES_REGEX, node_type='VP', if_root_node=True)
+                    s_type, e_type = test_pattern(q_type, question_rear)
+                    question_np = question_rear[e_type:s_aux]
+                    hypo = replace(question_rear, e_vp, e_vp, ' '+ans+question_np+' ')
+                    hypo = hypo[e_aux:]
+                    # print('hypo:', hypo)
+                    hypo = question_head + hypo
+                    hypo = strip_nonalnum_re(hypo)
             else:
                 s, e = test_pattern('(how many)|(how much)', question)
                 hypo = replace(question, s, e, ans)

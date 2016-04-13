@@ -173,10 +173,10 @@ def find_np_pos(question, ans, q_type, node_type='NP', if_root_node=False):
 
 
 # find the WHNP node
-def find_whnp_pos(question):
+def find_whnp_pos(question, node_type):
     tree = get_parse_tree(question)
     # tree.pretty_print()
-    subtree = find_first_subtree(tree, 'WHNP')
+    subtree = find_first_subtree(tree, node_type)
     if subtree == None:
         return None, None
     text = subtree.leaves()
@@ -186,14 +186,6 @@ def find_whnp_pos(question):
         return None, None
     else:
         return s, e
-
-# how many/how much transformation
-def exp_how_many(q_type, question):
-    s_aux, e_aux = test_pattern(q_type, question)
-    question_head = question[:s_aux]
-    question = question[s_aux:]
-    tree = get_parse_tree(question)
-    tree.pretty_print()
 
 
 # question normalization
