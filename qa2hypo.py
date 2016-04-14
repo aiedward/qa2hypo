@@ -265,15 +265,16 @@ def rule_based_transform(question, ans, q_type, corenlp, quiet):
 
                 s_aux, e_aux = test_pattern(AUX_V_DOES_REGEX, question_rear)
                 # print question_rear[:e-s]
+
+                s_type, e_type = test_pattern(q_type, question_rear)
                 
                 # be
                 if s_aux == e_aux:
-                    hypo = replace(question_rear, s, e, ans)
+                    hypo = replace(question_rear, s_type, e_type, ans)
                     hypo = question_head + question_rear
                 # do
                 else:
                     s_0, e_0, s_vp, e_vp, first_VP=find_np_pos(question_rear, ans, AUX_V_DOES_REGEX, node_type='VP', if_root_node=True)
-                    s_type, e_type = test_pattern(q_type, question_rear)
                     question_np = question_rear[e_type:s_aux]
                     hypo = replace(question_rear, e_vp, e_vp, ' '+ans+question_np+' ')
                     hypo = hypo[e_aux:]
