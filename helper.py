@@ -134,7 +134,7 @@ def find_np_pos(question, ans, q_type, node_type='NP', if_root_node=False):
     # print "Shortened question:", question
 
     tree = get_parse_tree(question)
-    # tree.pretty_print()
+    tree.pretty_print()
 
     first_NP = None
 

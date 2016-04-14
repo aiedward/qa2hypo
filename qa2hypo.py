@@ -15,9 +15,9 @@ from helper import *
 ###############################################################
 
 # auxiliary verbs, from https://en.wikipedia.org/wiki/Auxiliary_verb
-AUX_V = [r'\bam\b', r'\bis\b', r'\bare\b', r'\bwas\b', r'\bwere\b', r'\bcan\b', r'\bcould\b', r'\bdare\b', r'\bdo\b', r'\bdoes\b', r'\bdid\b', r'\bhave\b', r'\bhad\b', r'\bmay\b', r'\bmight\b', r'\bmust\b', r'\bneed\b', r'\bshall\b', r'\bshould\b', r'\bwill\b', r'\bwould\b']
+AUX_V = [r'\bam\b', r'\bis\b', r'\bare\b', r'\bwas\b', r'\bwere\b', r'\bbe\b', r'\bcan\b', r'\bcould\b', r'\bdare\b', r'\bdo\b', r'\bdoes\b', r'\bdid\b', r'\bhave\b', r'\bhad\b', r'\bmay\b', r'\bmight\b', r'\bmust\b', r'\bneed\b', r'\bshall\b', r'\bshould\b', r'\bwill\b', r'\bwould\b']
 AUX_V_REGEX = '('+'|'.join(['('+AUX_V[i]+')' for i in range(len(AUX_V))])+')'
-AUX_V_BE = [r'\bam\b', r'\bis\b', r'\bare\b', r'\bwas\b', r'\bwere\b']
+AUX_V_BE = [r'\bam\b', r'\bis\b', r'\bare\b', r'\bwas\b', r'\bwere\b', r'\bbe\b']
 AUX_V_BE_REGEX = '('+'|'.join(['('+AUX_V_BE[i]+')' for i in range(len(AUX_V_BE))])+')'
 AUX_V_DOES = [r'\bcan\b', r'\bcould\b', r'\bdare\b', r'\bdoes\b', r'\bdid\b', r'\bhave\b', r'\bhad\b', r'\bmay\b', r'\bmight\b', r'\bmust\b', r'\bneed\b', r'\bshall\b', r'\bshould\b', r'\bwill\b', r'\bwould\b']
 AUX_V_DOES_REGEX = '('+'|'.join(['('+AUX_V_DOES[i]+')' for i in range(len(AUX_V_DOES))])+')'
@@ -263,24 +263,42 @@ def rule_based_transform(question, ans, q_type, corenlp, quiet):
                 question_head = question[:s]
                 question_rear = question[s:]
 
-                s_aux, e_aux = test_pattern(AUX_V_DOES_REGEX, question_rear)
-                # print question_rear[:e-s]
+                # detect where AUX_V_BE_REGEX is
+                s_aux_be, e_aux_be = test_pattern(AUX_V_BE_REGEX, question_rear)
 
+                # detect where [how many] is
                 s_type, e_type = test_pattern(q_type, question_rear)
                 
                 # be
-                if s_aux == e_aux:
+                if s_aux_be != e_aux_be:
                     hypo = replace(question_rear, s_type, e_type, ans)
                     hypo = question_head + question_rear
                 # do
                 else:
-                    s_0, e_0, s_vp, e_vp, first_VP=find_np_pos(question_rear, ans, AUX_V_DOES_REGEX, node_type='VP', if_root_node=True)
-                    question_np = question_rear[e_type:s_aux]
-                    hypo = replace(question_rear, e_vp, e_vp, ' '+ans+question_np+' ')
-                    hypo = hypo[e_aux:]
-                    # print('hypo:', hypo)
-                    hypo = question_head + hypo
-                    hypo = strip_nonalnum_re(hypo)
+                    # detect where AUX_V_DOESONLY_REGEX is
+                    s_aux_do, e_aux_do = test_pattern(AUX_V_DOESONLY_REGEX, question_rear)
+                    # non-do
+                    if s_aux_do == e_aux_do:
+                        # detect where AUX_V_DOES_REGEX is
+                        s_aux, e_aux = test_pattern(AUX_V_DOES_REGEX, question_rear)
+
+                        s_0, e_0, s_vp, e_vp, first_VP=find_np_pos(question_rear, ans, AUX_V_DOES_REGEX, node_type='VP', if_root_node=True)
+                        question_np = question_rear[e_type:s_aux]
+                        hypo = replace(question_rear, e_vp, e_vp, ' '+ans+question_np+' ')
+                        hypo = replace(hypo, s_vp, s_vp, question_rear[s_aux:e_aux])
+                        hypo = hypo[e_aux:]
+                        hypo = question_head + hypo
+                        hypo = strip_nonalnum_re(hypo)
+                    # do
+                    else:
+                        s_0, e_0, s_vp, e_vp, first_VP=find_np_pos(question_rear, ans, AUX_V_DOES_REGEX, node_type='VP', if_root_node=True)
+                        question_np = question_rear[e_type:s_aux_do]
+                        # might be a bug with e_vp --> not a correct position
+                        hypo = replace(question_rear, e_vp, e_vp, ' '+ans+question_np+' ')
+                        hypo = hypo[e_aux_do:]
+                        # print('hypo:', hypo)
+                        hypo = question_head + hypo
+                        hypo = strip_nonalnum_re(hypo)
             else:
                 s, e = test_pattern('(how many)|(how much)', question)
                 hypo = replace(question, s, e, ans)
