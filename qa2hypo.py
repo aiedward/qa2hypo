@@ -285,7 +285,7 @@ def rule_based_transform(question, ans, q_type, corenlp, quiet):
                         s_0, e_0, s_vp, e_vp, first_VP=find_np_pos(question_rear, ans, AUX_V_DOES_REGEX, node_type='VP', if_root_node=True)
                         question_np = question_rear[e_type:s_aux]
                         hypo = replace(question_rear, e_vp, e_vp, ' '+ans+question_np+' ')
-                        hypo = replace(hypo, s_vp, s_vp, question_rear[s_aux:e_aux])
+                        hypo = replace(hypo, s_vp, s_vp, ' '+question_rear[s_aux:e_aux]+' ')
                         hypo = hypo[e_aux:]
                         hypo = question_head + hypo
                         hypo = strip_nonalnum_re(hypo)
