@@ -29,12 +29,13 @@ AUX_V_DOESONLY_REGEX = '('+'|'.join(['('+AUX_V_DOESONLY[i]+')' for i in range(le
 QUESTION_TYPES = ['__+', \
 '(when '+AUX_V_REGEX+'.*)|(when\?)', \
 '(where '+AUX_V_REGEX+'.*)|(where\?)', \
-'what ', \
-'which ', \
+r'\bwhat\b', \
+r'\bwhich\b', \
 '(whom '+AUX_V_REGEX+'.*)|(who '+AUX_V_REGEX+'.*)|(who\?)|(whom\?)', \
-'why ', \
-'(how many)|(how much)', \
-'(\Ahow [^(many)(much)])|(\W+how [^(many)(much)])', \
+r'\bwhy\b', \
+r'\bhow\b', \
+# '(how many)|(how much)', \
+# '(\Ahow [^(many)(much)])|(\W+how [^(many)(much)])', \
 '(name)|(choose)|(identify)', \
 '(\A'+AUX_V_REGEX+' )|(([!"#$%&()*+,-./:;<=>?@\[\\\]^_`{|}~]){1} '+AUX_V_REGEX+' )'
 ]
@@ -50,7 +51,7 @@ S_ALIAS = 'statement'
 SAMPLE_TYPE = 50
 
 # used when SAMPLE_TYPE == -1
-QUESTION_TYPE = 10
+QUESTION_TYPE = 9
 
 # whether to use the Stanford parser in the transformation
 corenlp = True
@@ -256,64 +257,80 @@ def rule_based_transform(question, ans, q_type, corenlp, quiet):
             if not re.search('because', ans, re.IGNORECASE):
                 hypo = question+', because '+ans
 
-        # how + adj
+        # how
         elif q_type == QUESTION_TYPES[7]:
+            s, e = test_pattern(q_type, question)
+
+            question_head = question[:s]
+            question_rear = question[s:]
+
+            # find 'how'
+            s_how, e_how = test_pattern(q_type, question_rear)
+
+            # find the word adjacent to 'how'
+            how_next = ((question_rear[e_how:]).strip().split(' '))[0]
+            # print 'how_next: ', how_next
+
             if corenlp:
-                s, e = test_pattern(q_type, question)
-                question_head = question[:s]
-                question_rear = question[s:]
-
-                # detect where AUX_V_BE_REGEX is
-                s_aux_be, e_aux_be = test_pattern(AUX_V_BE_REGEX, question_rear)
-
-                # detect where [how many] is
-                s_type, e_type = test_pattern(q_type, question_rear)
-                
-                # be
-                if s_aux_be != e_aux_be:
-                    hypo = replace(question_rear, s_type, e_type, ans)
-                    hypo = question_head + question_rear
-                # do
+                # how [aux_v] question
+                if re.search(AUX_V_REGEX, how_next):
+                    hypo = replace(question_rear, s_how, e_how, ' '+ans+' is how ')
+                    hypo = question_head + hypo
+                    hypo = strip_nonalnum_re(hypo)
+                # how [extent]
                 else:
-                    # detect where AUX_V_DOESONLY_REGEX is
-                    s_aux_do, e_aux_do = test_pattern(AUX_V_DOESONLY_REGEX, question_rear)
-                    # non-do
-                    if s_aux_do == e_aux_do:
-                        # detect where AUX_V_DOES_REGEX is
-                        s_aux, e_aux = test_pattern(AUX_V_DOES_REGEX, question_rear)
+                    # rename question type
+                    q_type = 'how ' + how_next.strip()
 
-                        s_0, e_0, s_vp, e_vp, first_VP=find_np_pos(question_rear, ans, AUX_V_DOES_REGEX, node_type='VP', if_root_node=True)
-                        question_np = question_rear[e_type:s_aux]
-                        hypo = replace(question_rear, e_vp, e_vp, ' '+ans+question_np+' ')
-                        hypo = replace(hypo, s_vp, s_vp, ' '+question_rear[s_aux:e_aux]+' ')
-                        hypo = hypo[e_aux:]
+                    # detect where AUX_V_BE_REGEX is
+                    s_aux_be, e_aux_be = test_pattern(AUX_V_BE_REGEX, question_rear)
+
+                    # detect where [how many] is
+                    s_type, e_type = test_pattern(q_type, question_rear)
+                    
+                    # be
+                    if s_aux_be != e_aux_be:
+                        # non-comparative
+                        hypo = replace(question_rear, s_type, e_type, ans)
                         hypo = question_head + hypo
-                        hypo = strip_nonalnum_re(hypo)
                     # do
                     else:
-                        s_0, e_0, s_vp, e_vp, first_VP=find_np_pos(question_rear, ans, AUX_V_DOES_REGEX, node_type='VP', if_root_node=True)
-                        question_np = question_rear[e_type:s_aux_do]
-                        # might be a bug with e_vp --> not a correct position
-                        hypo = replace(question_rear, e_vp, e_vp, ' '+ans+question_np+' ')
-                        hypo = hypo[e_aux_do:]
-                        # print('hypo:', hypo)
-                        hypo = question_head + hypo
-                        hypo = strip_nonalnum_re(hypo)
+                        # detect where AUX_V_DOESONLY_REGEX is
+                        s_aux_do, e_aux_do = test_pattern(AUX_V_DOESONLY_REGEX, question_rear)
+                        # non-do
+                        if s_aux_do == e_aux_do:
+                            # detect where AUX_V_DOES_REGEX is
+                            s_aux, e_aux = test_pattern(AUX_V_DOES_REGEX, question_rear)
+                            # find 
+                            s_0, e_0, s_vp, e_vp, first_VP=find_np_pos(question_rear, ans, AUX_V_DOES_REGEX, node_type='VP', if_root_node=True)
+                            question_np = question_rear[e_type:s_aux]
+                            hypo = replace(question_rear, e_vp, e_vp, ' '+ans+' '+question_np+' ')
+                            hypo = replace(hypo, s_vp, s_vp, ' '+question_rear[s_aux:e_aux]+' ')
+                            hypo = hypo[e_aux:]
+                            hypo = question_head + hypo
+                            hypo = strip_nonalnum_re(hypo)
+                        # do
+                        else:
+                            s_0, e_0, s_vp, e_vp, first_VP=find_np_pos(question_rear, ans, AUX_V_DOES_REGEX, node_type='VP', if_root_node=True)
+                            question_np = question_rear[e_type:s_aux_do]
+                            # print "question_np: ", question_np
+                            
+                            hypo = replace(question_rear, e_vp, e_vp, ' '+ans+' '+question_np+' ')
+                            hypo = hypo[e_aux_do:]
+                            # print('hypo:', hypo)
+                            hypo = question_head + hypo
+                            hypo = strip_nonalnum_re(hypo)
             else:
-                s, e = test_pattern('(how many)|(how much)', question)
-                hypo = replace(question, s, e, ans)
+                hypo = replace(question, s, e, ' '+ans+' is how ')
+
 
         elif q_type == QUESTION_TYPES[8]:
-            s, e = test_pattern('(\Ahow )|(\W+how )', question)
-            hypo = replace(question, s, e, ' '+ans+' is how ')
-
-        elif q_type == QUESTION_TYPES[9]:
             s, e = test_pattern('(name)|(choose)|(identify)', question)
             hypo = replace(question, s, e, ans+' is')
 
         # if starting with aux_v, exchange the Verb and Noun
         # if it is an or question, choose the one that heuristically matches the answer
-        elif q_type == QUESTION_TYPES[10]:
+        elif q_type == QUESTION_TYPES[9]:
             if not corenlp:
                 if re.search('(yes, )|(no, )', ans):
                     s, e = test_pattern('(yes, )|(no, )', ans)
@@ -406,16 +423,18 @@ if __name__ == "__main__":
     ############################
     # test on single sentence
     ############################
-
-    # question = "what does he refer to when he says that?"
-    # answer = "ice"
-    # sent = qa2hypo(question, answer)
+    # question = "How much longer is Oscar's bus ride than Charlie's?"
+    question = "How much older is he?"
+    answer = "0.5"
+    tree = get_parse_tree(question)
+    tree.pretty_print()
+    sent = qa2hypo(question, answer, True, False)
 
     ############################
     # test on single sentence
     ############################
-    a = get_args()
-    qa_pairs_list = pre_proc(a, 'math')
-    res = qa2hypo_test(qa_pairs_list)
-    post_proc(a, res, 'math')
+    # a = get_args()
+    # qa_pairs_list = pre_proc(a, 'math')
+    # res = qa2hypo_test(qa_pairs_list)
+    # post_proc(a, res, 'math')
 

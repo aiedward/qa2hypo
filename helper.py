@@ -54,10 +54,10 @@ def test_pattern(pattern, text):
 # find the positions of the NPs or VPs around 'or'
 def find_or_pos(question, ans, q_type):
 
-    sent_parse = loads(server.parse(question))
-    parse_tree = sent_parse['sentences'][0]['parsetree']
-    tree = ParentedTree.fromstring(parse_tree)
-    # print the tree
+    # sent_parse = loads(server.parse(question))
+    # parse_tree = sent_parse['sentences'][0]['parsetree']
+    # tree = ParentedTree.fromstring(parse_tree)
+    tree = get_parse_tree(question)
     # tree.pretty_print()
 
     or_node = None
