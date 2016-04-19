@@ -282,26 +282,45 @@ def rule_based_transform(question, ans, q_type, corenlp, quiet):
                     # rename question type
                     q_type = 'how ' + how_next.strip()
 
+                    # detect where [how many] is
+                    s_type, e_type = test_pattern(q_type, question_rear)
+
                     # detect where AUX_V_BE_REGEX is
                     s_aux_be, e_aux_be = test_pattern(AUX_V_BE_REGEX, question_rear)
 
-                    # detect where [how many] is
-                    s_type, e_type = test_pattern(q_type, question_rear)
-                    
                     # be
                     if s_aux_be != e_aux_be:
-                        # non-comparative
-                        hypo = replace(question_rear, s_type, e_type, ans)
-                        hypo = question_head + hypo
+                        s_np, e_np = find_type_position(question_rear, 'NP')
+                        # print 'np: ', question_rear[s_np:e_np]
+
+                        # noun follows [how many]
+                        if s_np >= e_type and e_np <= s_aux_be:
+                            hypo = replace(question_rear, s_type, e_type, ans)
+                            hypo = question_head + hypo
+                        # no noun follows [how many]
+                        else:
+                            # find aux_v_be
+                            be = question_rear[s_aux_be:e_aux_be]
+                            # print "be: ", be
+                            if be == 'be':
+                                be_before = ((question_rear[:s_aux_be]).strip().split(' '))[-1]
+                                # find [will be]
+                                be = be_before+' be'
+
+                            hypo = replace(question_rear, e_np, e_np, ' '+be+' '+ans+' '+question_rear[e_type:s_aux_be])
+                            hypo = hypo[s_np:]
+                            hypo = question_head + hypo
+                            hypo = strip_nonalnum_re(hypo)
+
                     # do
                     else:
-                        # detect where AUX_V_DOESONLY_REGEX is
+                        # find AUX_V_DOESONLY_REGEX
                         s_aux_do, e_aux_do = test_pattern(AUX_V_DOESONLY_REGEX, question_rear)
                         # non-do
                         if s_aux_do == e_aux_do:
-                            # detect where AUX_V_DOES_REGEX is
+                            # find AUX_V_DOES_REGEX
                             s_aux, e_aux = test_pattern(AUX_V_DOES_REGEX, question_rear)
-                            # find 
+                            # find the first verb
                             s_0, e_0, s_vp, e_vp, first_VP=find_np_pos(question_rear, ans, AUX_V_DOES_REGEX, node_type='VP', if_root_node=True)
                             question_np = question_rear[e_type:s_aux]
                             hypo = replace(question_rear, e_vp, e_vp, ' '+ans+' '+question_np+' ')
@@ -311,6 +330,7 @@ def rule_based_transform(question, ans, q_type, corenlp, quiet):
                             hypo = strip_nonalnum_re(hypo)
                         # do
                         else:
+                            # find the first verb
                             s_0, e_0, s_vp, e_vp, first_VP=find_np_pos(question_rear, ans, AUX_V_DOES_REGEX, node_type='VP', if_root_node=True)
                             question_np = question_rear[e_type:s_aux_do]
                             # print "question_np: ", question_np
@@ -424,17 +444,18 @@ if __name__ == "__main__":
     # test on single sentence
     ############################
     # question = "How much longer is Oscar's bus ride than Charlie's?"
-    question = "How much older is he?"
-    answer = "0.5"
-    tree = get_parse_tree(question)
-    tree.pretty_print()
-    sent = qa2hypo(question, answer, True, False)
+    # question = "How much more complicated is the problem?"
+    # question = "How far away is the town?"
+    # answer = "0.5"
+    # tree = get_parse_tree(question)
+    # tree.pretty_print()
+    # sent = qa2hypo(question, answer, True, False)
 
     ############################
     # test on single sentence
     ############################
-    # a = get_args()
-    # qa_pairs_list = pre_proc(a, 'math')
-    # res = qa2hypo_test(qa_pairs_list)
-    # post_proc(a, res, 'math')
+    a = get_args()
+    qa_pairs_list = pre_proc(a, 'math')
+    res = qa2hypo_test(qa_pairs_list)
+    post_proc(a, res, 'math')
 

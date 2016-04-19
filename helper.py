@@ -121,6 +121,15 @@ def find_first_root(tree, node_type):
     # print a[0].label()
     return a[0]
 
+# find the first appearance of the node of a certain type
+def find_type_position(sent, node_type):
+    tree = get_parse_tree(sent)
+    subtree = find_first_subtree(tree, node_type)
+    if subtree != None:
+        subtree = ' '.join(subtree.leaves())
+    s, e = test_pattern(subtree, sent)
+    return s, e
+
 # find the positions of the aux_v and the first noun
 def find_np_pos(question, ans, q_type, node_type='NP', if_root_node=False):
     s_aux, e_aux = test_pattern(q_type, question)
