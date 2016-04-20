@@ -127,7 +127,16 @@ def find_type_position(sent, node_type):
     subtree = find_first_subtree(tree, node_type)
     if subtree != None:
         subtree = ' '.join(subtree.leaves())
-    s, e = test_pattern(subtree, sent)
+        tmp = ((subtree.strip()).split(' '))[0]
+        s, e_tmp = test_pattern(tmp, sent)
+
+        s_than, e_than = test_pattern('than', sent)
+        if s_than == e_than:
+            e = s+len(subtree)
+        else:
+            e = s_than
+    else:
+        s, e = len(sent)-1, len(sent)-1
     return s, e
 
 # find the positions of the aux_v and the first noun

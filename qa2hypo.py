@@ -282,32 +282,50 @@ def rule_based_transform(question, ans, q_type, corenlp, quiet):
                     # rename question type
                     q_type = 'how ' + how_next.strip()
 
-                    # detect where [how many] is
+                    # find [how many]
                     s_type, e_type = test_pattern(q_type, question_rear)
 
-                    # detect where AUX_V_BE_REGEX is
+                    # find AUX_V_BE_REGEX
                     s_aux_be, e_aux_be = test_pattern(AUX_V_BE_REGEX, question_rear)
 
                     # be
                     if s_aux_be != e_aux_be:
+                        # find the position of the first noun in NP form
                         s_np, e_np = find_type_position(question_rear, 'NP')
-                        # print 'np: ', question_rear[s_np:e_np]
+                        print 'np: ', question_rear[s_np:e_np]
+
+                        # find the position of the first noun in NNS form
+                        s_nns, e_nns = find_type_position(question_rear, 'NNS')
+                        print 'nns: ', question_rear[s_nns:e_nns]
+
+                        # find the position of the first auxiliary verb
+                        s_aux_any, e_aux_any = test_pattern(AUX_V_REGEX, question_rear)
+                        print 'aux: ', question_rear[s_aux_any:e_aux_any]
 
                         # noun follows [how many]
-                        if s_np >= e_type and e_np <= s_aux_be:
+                        ###### e.g., how many apples are in the fridge ######
+                        if e_np <= s_aux_any or e_nns <= s_aux_any:
                             hypo = replace(question_rear, s_type, e_type, ans)
                             hypo = question_head + hypo
+
                         # no noun follows [how many]
+                        ###### e.g., how big is the apple ######
                         else:
                             # find aux_v_be
                             be = question_rear[s_aux_be:e_aux_be]
-                            # print "be: ", be
-                            if be == 'be':
-                                be_before = ((question_rear[:s_aux_be]).strip().split(' '))[-1]
-                                # find [will be]
-                                be = be_before+' be'
+                            print "be: ", be
 
-                            hypo = replace(question_rear, e_np, e_np, ' '+be+' '+ans+' '+question_rear[e_type:s_aux_be])
+                            s_aux, e_aux = test_pattern(AUX_V_DOES_REGEX, question_rear)
+                            print 'haha: ', question_rear[s_aux:e_aux]
+
+                            ###### e.g., how big will the apple be ######
+                            if be != 'be':
+                                hypo = replace(question_rear, e_np, e_np, ' '+be+' '+ans+' '+question_rear[e_type:s_aux_any])
+                            else:
+                                # find AUX_V_DOES_REGEX
+                                be = question_rear[s_aux:e_aux]
+                                hypo = replace(question_rear, e_aux_be, e_aux_be, ' '+ans+' '+question_rear[e_type:s_aux_any])
+                                hypo = replace(hypo, e_np, e_np, ' '+be+' ')
                             hypo = hypo[s_np:]
                             hypo = question_head + hypo
                             hypo = strip_nonalnum_re(hypo)
@@ -317,6 +335,7 @@ def rule_based_transform(question, ans, q_type, corenlp, quiet):
                         # find AUX_V_DOESONLY_REGEX
                         s_aux_do, e_aux_do = test_pattern(AUX_V_DOESONLY_REGEX, question_rear)
                         # non-do
+                        ###### e.g., how many apples will he eat ######
                         if s_aux_do == e_aux_do:
                             # find AUX_V_DOES_REGEX
                             s_aux, e_aux = test_pattern(AUX_V_DOES_REGEX, question_rear)
@@ -328,7 +347,9 @@ def rule_based_transform(question, ans, q_type, corenlp, quiet):
                             hypo = hypo[e_aux:]
                             hypo = question_head + hypo
                             hypo = strip_nonalnum_re(hypo)
+
                         # do
+                        ###### e.g., how many apples did he eat ######
                         else:
                             # find the first verb
                             s_0, e_0, s_vp, e_vp, first_VP=find_np_pos(question_rear, ans, AUX_V_DOES_REGEX, node_type='VP', if_root_node=True)
@@ -446,16 +467,20 @@ if __name__ == "__main__":
     # question = "How much longer is Oscar's bus ride than Charlie's?"
     # question = "How much more complicated is the problem?"
     # question = "How far away is the town?"
-    # answer = "0.5"
-    # tree = get_parse_tree(question)
-    # tree.pretty_print()
-    # sent = qa2hypo(question, answer, True, False)
+    # question = "How big is the apple going to be?"
+    # question = "How big is the apple becoming?"
+    question = "How big will the apple be?"
+    # question = "How many apples are in the fridge?"
+    answer = "0.5"
+    tree = get_parse_tree(question)
+    tree.pretty_print()
+    sent = qa2hypo(question, answer, True, False)
 
     ############################
     # test on single sentence
     ############################
-    a = get_args()
-    qa_pairs_list = pre_proc(a, 'math')
-    res = qa2hypo_test(qa_pairs_list)
-    post_proc(a, res, 'math')
+    # a = get_args()
+    # qa_pairs_list = pre_proc(a, 'math')
+    # res = qa2hypo_test(qa_pairs_list)
+    # post_proc(a, res, 'math') # includes writing to file
 
