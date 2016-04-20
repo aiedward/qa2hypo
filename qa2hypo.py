@@ -15,9 +15,9 @@ from helper import *
 ###############################################################
 
 # auxiliary verbs, from https://en.wikipedia.org/wiki/Auxiliary_verb
-AUX_V = [r'\bam\b', r'\bis\b', r'\bare\b', r'\bwas\b', r'\bwere\b', r'\bbe\b', r'\bcan\b', r'\bcould\b', r'\bdare\b', r'\bdo\b', r'\bdoes\b', r'\bdid\b', r'\bhave\b', r'\bhad\b', r'\bmay\b', r'\bmight\b', r'\bmust\b', r'\bneed\b', r'\bshall\b', r'\bshould\b', r'\bwill\b', r'\bwould\b']
+AUX_V = [r'\bam\b', r'\bis\b', r'\bare\b', r'\bwas\b', r'\bwere\b', r'\bbe\b', r'\bbeen\b', r'\bcan\b', r'\bcould\b', r'\bdare\b', r'\bdo\b', r'\bdoes\b', r'\bdid\b', r'\bhave\b', r'\bhad\b', r'\bmay\b', r'\bmight\b', r'\bmust\b', r'\bneed\b', r'\bshall\b', r'\bshould\b', r'\bwill\b', r'\bwould\b']
 AUX_V_REGEX = '('+'|'.join(['('+AUX_V[i]+')' for i in range(len(AUX_V))])+')'
-AUX_V_BE = [r'\bam\b', r'\bis\b', r'\bare\b', r'\bwas\b', r'\bwere\b', r'\bbe\b']
+AUX_V_BE = [r'\bam\b', r'\bis\b', r'\bare\b', r'\bwas\b', r'\bwere\b', r'\bbe\b'r', \bbeen\b']
 AUX_V_BE_REGEX = '('+'|'.join(['('+AUX_V_BE[i]+')' for i in range(len(AUX_V_BE))])+')'
 AUX_V_DOES = [r'\bcan\b', r'\bcould\b', r'\bdare\b', r'\bdoes\b', r'\bdid\b', r'\bhave\b', r'\bhad\b', r'\bmay\b', r'\bmight\b', r'\bmust\b', r'\bneed\b', r'\bshall\b', r'\bshould\b', r'\bwill\b', r'\bwould\b']
 AUX_V_DOES_REGEX = '('+'|'.join(['('+AUX_V_DOES[i]+')' for i in range(len(AUX_V_DOES))])+')'
@@ -311,21 +311,28 @@ def rule_based_transform(question, ans, q_type, corenlp, quiet):
                         # no noun follows [how many]
                         ###### e.g., how big is the apple ######
                         else:
-                            # find aux_v_be
-                            be = question_rear[s_aux_be:e_aux_be]
-                            print "be: ", be
+                            # find the first [aux_v_be]
+                            # be = question_rear[s_aux_be:e_aux_be]
+                            # print "be: ", be
 
-                            s_aux, e_aux = test_pattern(AUX_V_DOES_REGEX, question_rear)
-                            print 'haha: ', question_rear[s_aux:e_aux]
+                            # find first [vp]
+                            s_vp, e_vp = find_type_position(question_rear, 'VP')
 
-                            ###### e.g., how big will the apple be ######
-                            if be != 'be':
-                                hypo = replace(question_rear, e_np, e_np, ' '+be+' '+ans+' '+question_rear[e_type:s_aux_any])
-                            else:
+                            s_aux, e_aux = test_pattern(AUX_V_REGEX, question_rear)
+                            # print 'haha: ', question_rear[s_aux:e_aux]
+
+                            # ###### e.g., how big is the apple going to be ######
+                            # if be != 'be':
+                            #     hypo = replace(question_rear, e_np, e_np, ' '+be+' '+ans+' '+question_rear[e_type:s_aux_any])
+                            # ###### e.g., how big will the apple be ######
+                            # else:
                                 # find AUX_V_DOES_REGEX
-                                be = question_rear[s_aux:e_aux]
-                                hypo = replace(question_rear, e_aux_be, e_aux_be, ' '+ans+' '+question_rear[e_type:s_aux_any])
-                                hypo = replace(hypo, e_np, e_np, ' '+be+' ')
+                            be = question_rear[s_aux:e_aux]
+                            # put answer after [be]
+                            # hypo = replace(question_rear, e_aux_be, e_aux_be, ' '+ans+' '+question_rear[e_type:s_aux_any])
+                            hypo = replace(question_rear, e_vp, e_vp, ' '+ans+' '+question_rear[e_type:s_aux_any])
+                            # put [will] after [np]
+                            hypo = replace(hypo, e_np, e_np, ' '+be+' ')
                             hypo = hypo[s_np:]
                             hypo = question_head + hypo
                             hypo = strip_nonalnum_re(hypo)
@@ -467,9 +474,9 @@ if __name__ == "__main__":
     # question = "How much longer is Oscar's bus ride than Charlie's?"
     # question = "How much more complicated is the problem?"
     # question = "How far away is the town?"
-    # question = "How big is the apple going to be?"
+    question = "How big is the apple going to be?"
     # question = "How big is the apple becoming?"
-    question = "How big will the apple be?"
+    # question = "How big will the apple be?"
     # question = "How many apples are in the fridge?"
     answer = "0.5"
     tree = get_parse_tree(question)
