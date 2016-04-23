@@ -169,11 +169,11 @@ def find_first_root(tree, node_type):
     return a[0]
 
 # find the first appearance of a node root
-def find_type_root(tree, node_type):
+def find_type_root(sent, node_type):
     tree = get_parse_tree(sent)
     subtree = find_first_root(tree, node_type)
     if subtree != None:
-        subtree = ' '.join(subtree.leaves())
+        subtree_str = ' '.join(subtree.leaves())
         tmp = ((subtree_str.strip()).split(' '))[0]
         s, e_tmp = find_regex(tmp, sent)
         e = s+len(subtree_str)

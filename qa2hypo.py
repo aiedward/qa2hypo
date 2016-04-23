@@ -48,7 +48,7 @@ S_ALIAS = 'statement'
 # -1: sample by question type
 # 0: sample the complementary set of the listed question types
 # not -1 or 0: sample randomly, the value denoting the sample size. QUESTION_TYPE ignored
-SAMPLE_TYPE = 50
+SAMPLE_TYPE = 80
 
 # used when SAMPLE_TYPE == -1
 QUESTION_TYPE = 9
@@ -86,6 +86,10 @@ def pre_proc(args, domain):
         qa_pairs_list = qa_pairs['qa_pairs']
     elif domain == 'math':
         qa_pairs_list = qa_pairs
+        # for item in qa_pairs_list:
+        #     question = item[Q_ALIAS]
+        #     s, e = find_regex(QUESTION_TYPES[7], question)
+        #     item[Q_ALIAS] = question[s:]
 
     return qa_pairs_list
 
@@ -135,11 +139,17 @@ def qa2hypo_test(qa_pairs_list):
             q_type = get_question_type(question)
 
         ###if not re.search('what '+AUX_V_DOESONLY_REGEX, question) and not re.search('what '+AUX_V_DO_REGEX, question):
-        sent = rule_based_transform(question, ans, q_type, corenlp, QUEIT)
+        try:
+            sent = rule_based_transform(question, ans, q_type, corenlp, QUEIT)
 
-        res.append({Q_ALIAS:question, A_ALIAS:ans, S_ALIAS:sent})
+            res.append({Q_ALIAS:question, A_ALIAS:ans, S_ALIAS:sent})
 
-        ctr += 1
+            ctr += 1
+        except:
+            if not QUEIT:
+                print('Result:')
+                print("--------------------------------------")
+            pass
         ###
             
     print(ctr)
@@ -298,46 +308,42 @@ def rule_based_transform(question, ans, q_type, corenlp, quiet):
                     aux_be = question_rear[s_aux:e_aux]
                     # print aux_be
 
-                    # an auxiliary verb immediately follows a [whnp]
-                    ###### e.g., how many apples are on the table ######
-                    ###### e.g., how many apples are those that Joe bought ######
-                    ###### e.g., how many apples will be served ######
+                    # find the existence of [does]
+                    s_does, e_does = find_regex(AUX_V_DOESONLY_REGEX, question_rear[s_aux:e_aux])
+
+                    # find the first [vp]
+                    s_vp, e_vp = find_type_root(question_rear, 'VP')
+                    # print 'vp: ', question_rear[s_vp:e_vp]
+
+                    # find the [np] after [aux_v]
+                    s_np = e_aux + 1
+                    if s_vp != None:
+                        e_np = s_vp - 1
+                    else:
+                        question_trim = question_rear[s_np:]
+                        s_tmp, e_tmp = find_type_position(question_trim, 'NP')
+                        if e_tmp != None:
+                            e_np = s_np + e_tmp - s_tmp
+                        else:
+                            e_np = len(question_rear)-1
+                    # print 'np: ', question_rear[s_np:e_np]
+
+
+                    # determine if there is [adv] between [wh] and [np]
+                    s_adv = 0
+                    e_adv = 0
                     if (e_whnp != None):
                         adv = question_rear[e_whnp:s_aux]
-                        if adv.strip() == "":
-                            s_adv = 0
-                            e_adv = 0
-                        else:
+                        if adv.strip() != "":
                             s_adv, e_adv = find_type_position(adv, 'ADVP')
 
-                    if (e_whnp != None) and ((s_aux - e_whnp <= 2) or (s_adv != e_adv)):
-                        hypo = replace(question_rear, s_wh, e_wh, ans)
-                        hypo = question_head + hypo
-                        hypo = strip_nonalnum_re(hypo)
-                    ###### e.g., how complicated is the problem ######
-                    ###### e.g., how much money do you have ######
-                    ###### e.g., how much money am I going to earn ######
+                    # [whnp] + [aux_v] without [vp] or without [np]
+                    ######### how many applies are peeled
+                    ######### how many applies are on the table
+                    if (e_whnp != None) and ((s_aux - e_whnp <= 2) or (s_adv != e_adv)) and ((e_vp == None) or (e_np - s_np <=0)):
+                            hypo = replace(question_rear, s_wh, e_wh, ans)
+
                     else:
-                        # find the first [vp]
-                        s_vp, e_vp = find_type_position(question_rear, 'VP')
-                        # print 'vp: ', question_rear[s_vp:e_vp]
-
-                        # find the [np] after [aux_v]
-                        s_np = e_aux + 1
-                        if s_vp != None:
-                            e_np = s_vp - 1
-                        else:
-                            question_trim = question_rear[s_np:]
-                            s_tmp, e_tmp = find_type_position(question_trim, 'NP')
-                            if e_tmp != None:
-                                e_np = s_np + e_tmp - s_tmp
-                            else:
-                                e_np = len(question_rear)-1
-                        # print 'np: ', question_rear[s_np:e_np]
-
-                        # find the existence of [does]
-                        s_does, e_does = find_regex(AUX_V_DOESONLY_REGEX, question_rear[s_aux:e_aux])
-
                         # [will] as the [aux_v], no need for changing the tense
                         if s_does == e_does:
                             # [be]
@@ -462,7 +468,7 @@ if __name__ == "__main__":
     ############################
     # test on single sentence
     ############################
-    question = "How much oil exactly is under the ground?"
+    # question = "How much oil exactly is under the ground?"
     # question = "How longer is Oscar's bus ride than Charlie's?"
     # question = "How more complicated is the problem?"
     # question = "How heavy is the apple?"
@@ -478,19 +484,22 @@ if __name__ == "__main__":
     # question = "How much milk is in the bottle?"
     # question = "How long did he run?"
     # question = "How many pairs of shoes are on the shelf?"
-    answer = "0.5"
-    tree = get_parse_tree(question)
-    tree.pretty_print()
-    # for subtree in tree.subtrees():
-    #     print subtree.label() + ":" + ' '.join(subtree.leaves())
-    
-    sent = qa2hypo(question, answer, True, False)
+    # question = "How many books does Fred have?"
+    # question = "how many pitchers of lemonade did she prepare?"
+    # question = "How many apples has she had?"
+    # question = "How much money do you have?"
+    # question = "How many apples were peeled?"
+    # question = "How many miles did Irwin's family hike in all?"
+    # answer = "0.5"
+    # tree = get_parse_tree(question)
+    # tree.pretty_print()
+    # sent = qa2hypo(question, answer, True, False)
 
     ############################
     # test on single sentence
     ############################
-    # a = get_args()
-    # qa_pairs_list = pre_proc(a, 'math')
-    # res = qa2hypo_test(qa_pairs_list)
-    # post_proc(a, res, 'math') # includes writing to file
+    a = get_args()
+    qa_pairs_list = pre_proc(a, 'math')
+    res = qa2hypo_test(qa_pairs_list)
+    post_proc(a, res, 'math') # includes writing to file
 
