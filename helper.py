@@ -1,5 +1,7 @@
 from parser import *
 import re
+import en
+# from nltk.tokenize import TweetTokenizer
 
 # strip any non alnum characters in the end
 def strip_nonalnum_re(sent):
@@ -114,22 +116,36 @@ def find_min(noneList):
         return None, None
     
     i = 0
-    i_min = None
-    a = noneList[i]
-    while (a==None) and (i<len(noneList)):
+    while (noneList[i]==None) and (i<len(noneList)):
         i += 1
-        a = noneList[i]
+    if i >= len(noneList):
+        return None, None
+
+    i_min = i
+    a = noneList[i]
 
     while i < len(noneList):
         if noneList[i] == None:
             i+=1
         else:
-            a = min(a, noneList[i])
-    return a
+            if noneList[i] < a:
+                a = noneList[i]
+                i_min = i
+            i+=1
+
+    return a, i_min
 
 # transform a verb into an appropriate tense
 def v_transform(v_old, np, aux_v):
-    
+    v_new = v_old
+
+    if aux_v.strip() == "did":
+        v_new = en.verb.past(v_old)
+    elif aux_v.strip() == "does":
+        v_new = en.verb.present(v_old, person=3, negate=False)
+
+    return v_new
+
 
 # find the first subtree of a certain node type
 def find_first_subtree(tree, node_type):
@@ -139,6 +155,7 @@ def find_first_subtree(tree, node_type):
 # find all the subtrees of a certain node type
 def find_all_subtree(tree, node_type):
     subtreeList = []
+    subtreePos = []
     for subtree in tree.subtrees(filter=lambda x: x.label() == node_type):
         subtreeList.append(subtree)
     return subtreeList
@@ -168,8 +185,8 @@ def find_type_root(tree, node_type):
 def find_type_position(sent, node_type):
     tree = get_parse_tree(sent)
     subtree = find_first_subtree(tree, node_type)
-    # print subtree
     if subtree != None:
+        # print subtree.label()
         subtree_str = ' '.join(subtree.leaves())
         # print 'subtree: ', subtree_str
         tmp = ((subtree_str.strip()).split(' '))[0]
@@ -183,6 +200,7 @@ def find_type_position(sent, node_type):
     else:
         s, e = None, None
     return s, e
+
 
 # find the positions of the aux_v and the first noun
 def find_np_pos(question, ans, q_type, node_type='NP', if_root_node=False):

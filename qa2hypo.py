@@ -5,7 +5,7 @@ import os
 import random
 import re
 import string
-import en
+
 
 from helper import *
 
@@ -284,25 +284,33 @@ def rule_based_transform(question, ans, q_type, corenlp, quiet):
 
                     # find the position of WHNP
                     s_whnp, e_whnp = find_type_position(question_rear, 'WHNP')
-                    # print 'whnp: ', question_rear[s_whnp:e_whnp]
+                    
+                    # find the position of WHADVP
+                    s_whadvp, e_whadvp = find_type_position(question_rear, 'WHADVP')
 
-                    s_wh = s_whadjp
-                    if s_whadjp == None:
-                        s_wh = s_whnp
-
-                    e_wh = e_whadjp
-                    if e_whadjp == None:
-                        e_wh = e_whnp
+                    e_list = [e_whadjp, e_whnp, e_whadvp]
+                    s_list = [s_whadjp, s_whnp, s_whadvp]
+                    e_wh, i_min = find_min(e_list)
+                    s_wh = s_list[i_min]
 
                     # find the first auxiliary verb
                     s_aux, e_aux = find_regex(AUX_V_REGEX, question_rear)
                     aux_be = question_rear[s_aux:e_aux]
+                    # print aux_be
 
                     # an auxiliary verb immediately follows a [whnp]
                     ###### e.g., how many apples are on the table ######
                     ###### e.g., how many apples are those that Joe bought ######
                     ###### e.g., how many apples will be served ######
-                    if (e_whnp != None) and (s_aux - e_whnp <= 2):
+                    if (e_whnp != None):
+                        adv = question_rear[e_whnp:s_aux]
+                        if adv.strip() == "":
+                            s_adv = 0
+                            e_adv = 0
+                        else:
+                            s_adv, e_adv = find_type_position(adv, 'ADVP')
+
+                    if (e_whnp != None) and ((s_aux - e_whnp <= 2) or (s_adv != e_adv)):
                         hypo = replace(question_rear, s_wh, e_wh, ans)
                         hypo = question_head + hypo
                         hypo = strip_nonalnum_re(hypo)
@@ -310,16 +318,22 @@ def rule_based_transform(question, ans, q_type, corenlp, quiet):
                     ###### e.g., how much money do you have ######
                     ###### e.g., how much money am I going to earn ######
                     else:
-                        # find [np] right after [aux_v]
-                        question_trimmed = question_rear[e_aux:]
-                        s_np, e_np = find_type_position(question_trimmed, 'NP')
-                        if e_np != None:
-                            s_np += e_aux
-                            e_np += e_aux
-                        s_vp, e_vp = find_type_position(question_trimmed, 'VP')
-                        if e_vp != None:
-                            s_vp += e_aux
-                            e_np += e_aux
+                        # find the first [vp]
+                        s_vp, e_vp = find_type_position(question_rear, 'VP')
+                        # print 'vp: ', question_rear[s_vp:e_vp]
+
+                        # find the [np] after [aux_v]
+                        s_np = e_aux + 1
+                        if s_vp != None:
+                            e_np = s_vp - 1
+                        else:
+                            question_trim = question_rear[s_np:]
+                            s_tmp, e_tmp = find_type_position(question_trim, 'NP')
+                            if e_tmp != None:
+                                e_np = s_np + e_tmp - s_tmp
+                            else:
+                                e_np = len(question_rear)-1
+                        # print 'np: ', question_rear[s_np:e_np]
 
                         # find the existence of [does]
                         s_does, e_does = find_regex(AUX_V_DOESONLY_REGEX, question_rear[s_aux:e_aux])
@@ -345,103 +359,6 @@ def rule_based_transform(question, ans, q_type, corenlp, quiet):
                         hypo = question_head + hypo
                         hypo = strip_nonalnum_re(hypo)
 
-
-
-
-                    
-
-                    e_wh = find_min([e_whadjp, e_whadvp, e_whnp])
-
-                    
-                    # find if the neighboring node is a noun
-                    aux_node = find_node_by_word(question_rear, s_aux, e_aux)
-
-                    # the node right to the auxiliary verb
-                    aux_right = aux_node.right_sibling()
-
-
-
-
-                    # be
-                    if s_aux_be != e_aux_be:
-
-                        
-
-                        # find the position of the first auxiliary verb
-                        s_aux_any, e_aux_any = find_regex(AUX_V_REGEX, question_rear)
-                        # print 'aux: ', question_rear[s_aux_any:e_aux_any]
-
-                        # find the position of the first noun in NP form
-                        s_np, e_np = find_type_position(question_rear, 'NP')
-                        # print 'np: ', question_rear[s_np:e_np]
-
-                        # noun follows [how many]
-                        ###### e.g., how many apples are in the fridge ######
-                        if s_whnp != e_whnp:
-                            if s_whadjp!=None:
-                                hypo = replace(question_rear, s_whadjp, e_whadjp, ans)
-                            else:
-                                hypo = replace(question_rear, s_whadvp, e_whadvp, ans)
-                            hypo = question_head + hypo
-
-                        # no noun follows [how many]
-                        else:
-                            # find first [vp]
-                            s_vp, e_vp = find_type_position(question_rear, 'VP')
-
-                            be = question_rear[s_aux_any:e_aux_any]
-
-                            ###### e.g., how big is the apple (no vp) ######
-                            if e_vp == None:
-                                if s_whadjp!= None:
-                                    hypo = replace(question_rear, e_np, e_np, ' '+be+' '+ans+' '+question_rear[s_whadjp+3:s_aux_any])
-                                else:
-                                    hypo = replace(question_rear, e_np, e_np, ' '+be+' '+ans+' '+question_rear[s_whadvp+3:s_aux_any])
-                            ###### e.g., how far did he go (vp) ######
-                            else:
-                                if s_whadjp!= None:
-                                    hypo = replace(question_rear, e_vp, e_vp, ' '+ans+' '+question_rear[s_whadjp+3:s_aux_any])
-                                    # print question_rear[s_whadjp+3:s_aux_any]
-                                else:
-                                    hypo = replace(question_rear, e_vp, e_vp, ' '+ans+' '+question_rear[s_whadvp+3:s_aux_any])
-                                # put [will] after [np]
-                                hypo = replace(hypo, e_np, e_np, ' '+be+' ')
-
-                            hypo = hypo[s_np:]
-                            hypo = question_head + hypo
-                            hypo = strip_nonalnum_re(hypo)
-
-                    # do
-                    else:
-                        # find AUX_V_DOESONLY_REGEX
-                        s_aux_do, e_aux_do = find_regex(AUX_V_DOESONLY_REGEX, question_rear)
-                        # non-do
-                        ###### e.g., how many apples will he eat ######
-                        if s_aux_do == e_aux_do:
-                            # find AUX_V_DOES_REGEX
-                            s_aux, e_aux = find_regex(AUX_V_DOES_REGEX, question_rear)
-                            # find the first verb
-                            s_0, e_0, s_vp, e_vp, first_VP=find_np_pos(question_rear, ans, AUX_V_DOES_REGEX, node_type='VP', if_root_node=True)
-                            question_np = question_rear[e_whadjp:s_aux]
-                            hypo = replace(question_rear, e_vp, e_vp, ' '+ans+' '+question_np+' ')
-                            hypo = replace(hypo, s_vp, s_vp, ' '+question_rear[s_aux:e_aux]+' ')
-                            hypo = hypo[e_aux:]
-                            hypo = question_head + hypo
-                            hypo = strip_nonalnum_re(hypo)
-
-                        # do
-                        ###### e.g., how many apples did he eat ######
-                        else:
-                            # find the first verb
-                            s_0, e_0, s_vp, e_vp, first_VP=find_np_pos(question_rear, ans, AUX_V_DOES_REGEX, node_type='VP', if_root_node=True)
-                            question_np = question_rear[e_whadjp:s_aux_do]
-                            # print "question_np: ", question_np
-                            
-                            hypo = replace(question_rear, e_vp, e_vp, ' '+ans+' '+question_np+' ')
-                            hypo = hypo[e_aux_do:]
-                            # print('hypo:', hypo)
-                            hypo = question_head + hypo
-                            hypo = strip_nonalnum_re(hypo)
             else:
                 hypo = replace(question, s, e, ' '+ans+' is how ')
 
@@ -546,7 +463,7 @@ if __name__ == "__main__":
     # test on single sentence
     ############################
     question = "How much oil exactly is under the ground?"
-    # question = "How much longer is Oscar's bus ride than Charlie's?"
+    # question = "How longer is Oscar's bus ride than Charlie's?"
     # question = "How more complicated is the problem?"
     # question = "How heavy is the apple?"
     # question = "How heavier is the apple?"
@@ -564,10 +481,10 @@ if __name__ == "__main__":
     answer = "0.5"
     tree = get_parse_tree(question)
     tree.pretty_print()
-    for subtree in tree.subtrees():
-        print subtree.label() + ":" + ' '.join(subtree.leaves())
+    # for subtree in tree.subtrees():
+    #     print subtree.label() + ":" + ' '.join(subtree.leaves())
     
-    # sent = qa2hypo(question, answer, True, False)
+    sent = qa2hypo(question, answer, True, False)
 
     ############################
     # test on single sentence
