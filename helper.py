@@ -41,7 +41,7 @@ def test_patterns(patterns, text):
     return
 
 # for return purpose
-def test_pattern(pattern, text):
+def find_regex(pattern, text):
     match = re.search(pattern, text)
     pos = len(text)-1
     if not match:
@@ -103,15 +103,45 @@ def find_or_pos(question, ans, q_type):
     # print("candidates_list:", candidates_list)
     # print("candidate_chosen:", candidate_chosen)
 
-    s0, e0 = test_pattern(candidates_list[0].strip(), question)
-    s1, e1 = test_pattern(candidates_list[-1].strip(), question)
+    s0, e0 = find_regex(candidates_list[0].strip(), question)
+    s1, e1 = find_regex(candidates_list[-1].strip(), question)
 
     return s0, e1, candidate_chosen
+
+# find the minimum of a list that contains None elements
+def find_min(noneList):
+    if noneList == []:
+        return None, None
+    
+    i = 0
+    i_min = None
+    a = noneList[i]
+    while (a==None) and (i<len(noneList)):
+        i += 1
+        a = noneList[i]
+
+    while i < len(noneList):
+        if noneList[i] == None:
+            i+=1
+        else:
+            a = min(a, noneList[i])
+    return a
+
+# transform a verb into an appropriate tense
+def v_transform(v_old, np, aux_v):
+    
 
 # find the first subtree of a certain node type
 def find_first_subtree(tree, node_type):
     for subtree in tree.subtrees(filter=lambda x: x.label() == node_type):
         return subtree
+
+# find all the subtrees of a certain node type
+def find_all_subtree(tree, node_type):
+    subtreeList = []
+    for subtree in tree.subtrees(filter=lambda x: x.label() == node_type):
+        subtreeList.append(subtree)
+    return subtreeList
 
 # find the root of the first subtree of a certain node type  
 def find_first_root(tree, node_type):
@@ -121,27 +151,42 @@ def find_first_root(tree, node_type):
     # print a[0].label()
     return a[0]
 
-# find the first appearance of the node of a certain type
+# find the first appearance of a node root
+def find_type_root(tree, node_type):
+    tree = get_parse_tree(sent)
+    subtree = find_first_root(tree, node_type)
+    if subtree != None:
+        subtree = ' '.join(subtree.leaves())
+        tmp = ((subtree_str.strip()).split(' '))[0]
+        s, e_tmp = find_regex(tmp, sent)
+        e = s+len(subtree_str)
+    else:
+        s, e = None, None
+    return s, e
+
+# find the first appearance of a node
 def find_type_position(sent, node_type):
     tree = get_parse_tree(sent)
     subtree = find_first_subtree(tree, node_type)
+    # print subtree
     if subtree != None:
-        subtree = ' '.join(subtree.leaves())
-        tmp = ((subtree.strip()).split(' '))[0]
-        s, e_tmp = test_pattern(tmp, sent)
+        subtree_str = ' '.join(subtree.leaves())
+        # print 'subtree: ', subtree_str
+        tmp = ((subtree_str.strip()).split(' '))[0]
+        s, e_tmp = find_regex(tmp, sent)
 
-        s_than, e_than = test_pattern('than', sent)
+        s_than, e_than = find_regex(r'\bthan\b', sent)
         if s_than == e_than:
-            e = s+len(subtree)
+            e = s+len(subtree_str)
         else:
             e = s_than
     else:
-        s, e = len(sent)-1, len(sent)-1
+        s, e = None, None
     return s, e
 
 # find the positions of the aux_v and the first noun
 def find_np_pos(question, ans, q_type, node_type='NP', if_root_node=False):
-    s_aux, e_aux = test_pattern(q_type, question)
+    s_aux, e_aux = find_regex(q_type, question)
     # print '  %2d : %2d = "%s"' % (s_aux, e_aux-1, question[s_aux:e_aux])
     
     if node_type=='NP':
@@ -152,7 +197,7 @@ def find_np_pos(question, ans, q_type, node_type='NP', if_root_node=False):
     # print "Shortened question:", question
 
     tree = get_parse_tree(question)
-    tree.pretty_print()
+    # tree.pretty_print()
 
     first_NP = None
 
@@ -176,7 +221,7 @@ def find_np_pos(question, ans, q_type, node_type='NP', if_root_node=False):
     first_NP_len = 0
     if first_NP:
         first_NP_len = len(first_NP)
-        s_np, e_np = test_pattern((first_NP.split(' '))[0], question)
+        s_np, e_np = find_regex((first_NP.split(' '))[0], question)
     else:
         s_np = len(question)-1
     # s_np = e_aux+1
@@ -190,20 +235,20 @@ def find_np_pos(question, ans, q_type, node_type='NP', if_root_node=False):
         return s_aux, e_aux, s_np, e_np, first_NP
 
 
-# find the WHNP node
-def find_whnp_pos(question, node_type):
-    tree = get_parse_tree(question)
-    # tree.pretty_print()
-    subtree = find_first_subtree(tree, node_type)
-    if subtree == None:
-        return None, None
-    text = subtree.leaves()
-    text = ' '.join(text)
-    s, e = test_pattern(text, question)
-    if s == e:
-        return None, None
-    else:
-        return s, e
+# # find the WHNP node
+# def find_node_pos(question, node_type):
+#     tree = get_parse_tree(question)
+#     # tree.pretty_print()
+#     subtree = find_first_subtree(tree, node_type)
+#     if subtree == None:
+#         return None, None
+#     text = subtree.leaves()
+#     text = ' '.join(text)
+#     s, e = find_regex(text, question)
+#     if s == e:
+#         return None, None
+#     else:
+#         return s, e
 
 
 # question normalization
