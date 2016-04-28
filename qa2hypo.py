@@ -341,7 +341,7 @@ def rule_based_transform(question, ans, q_type, corenlp, quiet):
                     ######### how many applies are peeled
                     ######### how many applies are on the table
                     if (e_whnp != None) and ((s_aux - e_whnp <= 2) or (s_adv != e_adv)) and ((e_vp == None) or (e_np - s_np <=0)):
-                            hypo = replace(question_rear, s_wh, e_wh, ans)
+                        hypo = replace(question_rear, s_wh, e_wh, ans)
 
                     else:
                         # [will] as the [aux_v], no need for changing the tense
@@ -362,8 +362,8 @@ def rule_based_transform(question, ans, q_type, corenlp, quiet):
                             hypo = replace(hypo, s_vp, e_vp, v_new)
 
                         hypo = hypo[s_np:]
-                        hypo = question_head + hypo
-                        hypo = strip_nonalnum_re(hypo)
+                    hypo = question_head + hypo
+                    hypo = strip_nonalnum_re(hypo)
 
             else:
                 hypo = replace(question, s, e, ' '+ans+' is how ')
@@ -468,38 +468,17 @@ if __name__ == "__main__":
     ############################
     # test on single sentence
     ############################
-    # question = "How much oil exactly is under the ground?"
-    # question = "How longer is Oscar's bus ride than Charlie's?"
-    # question = "How more complicated is the problem?"
-    # question = "How heavy is the apple?"
-    # question = "How heavier is the apple?"
-    # question = "How far away is the town?"
-    # question = "How big is the apple going to be?"
-    # question = "How big is the apple becoming?"
-    # question = "How big will the apple be?"
-    # question = "How many apples are in the fridge?"
-    # question = "How severely was he injured?"
-    # question = "How many sheep are on the hill?"
-    # question = "How many children are in the classroom?"
-    # question = "How much milk is in the bottle?"
-    # question = "How long did he run?"
-    # question = "How many pairs of shoes are on the shelf?"
-    # question = "How many books does Fred have?"
-    # question = "how many pitchers of lemonade did she prepare?"
-    # question = "How many apples has she had?"
-    # question = "How much money do you have?"
-    # question = "How many apples were peeled?"
-    # question = "How many miles did Irwin's family hike in all?"
-    # answer = "0.5"
-    # tree = get_parse_tree(question)
-    # tree.pretty_print()
-    # sent = qa2hypo(question, answer, True, False)
+    question = "How many shelves were filled with carvings?"
+    answer = "0.5"
+    tree = get_parse_tree(question)
+    tree.pretty_print()
+    sent = qa2hypo(question, answer, True, False)
 
     ############################
     # test on single sentence
     ############################
-    a = get_args()
-    qa_pairs_list = pre_proc(a, 'math')
-    res = qa2hypo_test(qa_pairs_list)
-    post_proc(a, res, 'math') # includes writing to file
+    # a = get_args()
+    # qa_pairs_list = pre_proc(a, 'math')
+    # res = qa2hypo_test(qa_pairs_list)
+    # post_proc(a, res, 'math') # includes writing to file
 
