@@ -273,8 +273,8 @@ def find_np_pos(question, ans, q_type, node_type='NP', if_root_node=False):
 def q_norm(question):
     question = question.lower()
 
-    if question.endswith('?') or question.endswith(':'):
-        question = question[:-1]
+    # if question.endswith('?') or question.endswith(':'):
+    #     question = question[:-1]
 
     return question
 
