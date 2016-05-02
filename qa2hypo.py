@@ -1,59 +1,12 @@
 import numpy as np
-import json
 
-import os
 import random
 import re
 import string
 
 from helper import *
 from globe import *
-
-
-# pre-processing
-# using ~/csehomedir/projects/dqa/dqa-data/shining3-vqa for diagram question answering
-# using ~/csehomedir/projects/dqa/math-data for math question answering
-def pre_proc(args, domain):
-    root_dir = args.root_dir
-    qa_path = os.path.join(root_dir, 'qa_pairs.json')
-    qa_res_path = os.path.join(root_dir, 'qa_res.json')
-
-    print("Loading json files ...")
-    qa_pairs = json.load(open(qa_path, 'rb'))
-
-    if domain == 'diagram':
-        qa_pairs_list = qa_pairs['qa_pairs']
-    elif domain == 'math':
-        qa_pairs_list = qa_pairs
-        # for item in qa_pairs_list:
-        #     question = item[Q_ALIAS]
-        #     s, e = find_regex(QUESTION_TYPES[7], question)
-        #     item[Q_ALIAS] = question[s:]
-
-    return qa_pairs_list
-
-# post-processing
-# using ~/csehomedir/projects/dqa/dqa-data/shining3-vqa for diagram question answering
-# using ~/csehomedir/projects/dqa/math-data for math question answering
-def post_proc(args, res, domain):
-    root_dir = args.root_dir
-    qa_path = os.path.join(root_dir, 'qa_pairs.json')
-    qa_res_path = os.path.join(root_dir, 'qa_res.json')
-
-    print("Dumping json files ...")
-    json.dump(res, open(qa_res_path, 'wb'))
-
-    qa_res_path_2 = os.path.join(root_dir, 'qa_res.txt')
-    with open(qa_res_path_2, 'wb') as fw:
-        for i in res:
-            fw.write('\nquestion: ')
-            fw.write((i[Q_ALIAS]).encode('utf-8').strip())
-            fw.write('\nanswer: ')
-            fw.write(str(i[A_ALIAS]))
-            fw.write('\nresult: ')
-            fw.write((i[S_ALIAS]).encode('utf-8').strip())
-            fw.write('\n-----------------')
-
+from pre_post_proc import *
 
 
 # turn qa_pairs into hypotheses, test (can sample questions)
