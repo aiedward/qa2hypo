@@ -50,12 +50,12 @@ def pre_proc(args, domain):
                             item[A_ALIAS] = '4'
                             qa_pairs_list.append(item)
 
-                            print "sent: ", q
-                            fw.write("sent: "+q+'\n')
-                            print "real: ", q_sub
-                            fw.write('real: '+q_sub+'\n')
-                            print 
-                            fw.write('\n')
+                            # print "sent: ", q
+                            # fw.write("sent: "+q+'\n')
+                            # print "real: ", q_sub
+                            # fw.write('real: '+q_sub+'\n')
+                            # print 
+                            # fw.write('\n')
 
                         list_len.append(len(q_list))
                         list_head.append(q_head)
