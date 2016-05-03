@@ -33,24 +33,33 @@ def pre_proc(args, domain):
         qa_path = os.path.join(root_dir, 'data.txt')
         qa_pairs_list = []
         ctr = 0
+
+        list_len = []
+        list_head = []
         with open(os.path.join(root_dir, 'data_clean.txt'), 'wb') as fw:
             with open(qa_path, 'r') as f:
                 for line in f:
                     q = line.strip()
                     if q != '4' and q != "":
-                        item = {}
-                        q_real = q_aida_extract(q)
-                        item[Q_ALIAS] = q
-                        item[A_ALIAS] = '4'
-                        qa_pairs_list.append(item)
-
-                        print "sent: ", q
-                        fw.write("sent: "+q+'\n')
-                        print "real: ", q_real
-                        fw.write('real: '+q_real+'\n')
-                        print 
-                        fw.write('\n')
                         
+                        q_head, q_real = q_aida_extract(q)
+                        q_list = q_aida_identify(q_real)
+                        for q_sub in q_list:
+                            item = {}
+                            item[Q_ALIAS] = q_sub
+                            item[A_ALIAS] = '4'
+                            qa_pairs_list.append(item)
+
+                            print "sent: ", q
+                            fw.write("sent: "+q+'\n')
+                            print "real: ", q_sub
+                            fw.write('real: '+q_sub+'\n')
+                            print 
+                            fw.write('\n')
+
+                        list_len.append(len(q_list))
+                        list_head.append(q_head)
+
                     ctr += 1
 
     return qa_pairs_list
@@ -78,10 +87,12 @@ def post_proc(args, res, domain):
             fw.write((i[S_ALIAS]).encode('utf-8').strip())
             fw.write('\n-----------------')
 
+# isolate questions and descriptions heuristically
 def q_aida_extract(q):
     q_list = q.split('.')
     l = len(q_list)
     q_real = ""
+    q_head = ""
     if l > 1:
         if q_list[-1] != "":
             i = 0
@@ -89,9 +100,23 @@ def q_aida_extract(q):
             while re.match('\d', q_list[l-2-i][-1]) and re.match('\d', q_list[l-2-i+1][0]) and l-2-i>=0:
                 q_real = q_list[l-2-i]+'.'+q_real
                 i+=1
+            q_head = '.'.join(q_list[:l-2-i+1])+'.'
         else:
             q_real = q_list[-2]+'.'
+            q_head = '.'.join(q_list[:-2])+'.'
     else:
         q_real = q
-    return q_real
+        q_head = ""
+    return q_head, q_real
+
+# identify individual questions heuristically
+def q_aida_identify(q_real):
+    q_real_list = q_real.split('?')
+    ans = []
+    for q in q_real_list:
+        if q != "":
+            ans.append(q+'?')
+    return ans
+
+
 

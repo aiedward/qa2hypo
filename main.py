@@ -26,5 +26,5 @@ if __name__ == "__main__":
     a = get_args()
     qa_pairs_list = pre_proc(a, 'math_aida')
     # qa_pairs_list = pre_proc(a, 'math_rik')
-    # res = qa2hypo_test(qa_pairs_list)
-    # post_proc(a, res, 'math_rik') # includes writing to file
+    res = qa2hypo_test(qa_pairs_list)
+    post_proc(a, res, 'math_aida') # includes writing to file
