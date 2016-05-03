@@ -1,5 +1,7 @@
 import os
 import json
+import re
+from globe import *
 
 # pre-processing
 # use ~/csehomedir/projects/dqa/dqa-data/shining3-vqa for diagram question answering
@@ -29,15 +31,27 @@ def pre_proc(args, domain):
     # Aida's math qa dataset
     elif domain == 'math_aida':
         qa_path = os.path.join(root_dir, 'data.txt')
-        print qa_path
-        with open(qa_path, 'r') as f:
-            a = f.readline()
-            b = f.readline()
-            c = f.readline()
-            print a
-            print b
-            print c
-        qa_pairs_list = None
+        qa_pairs_list = []
+        ctr = 0
+        with open(os.path.join(root_dir, 'data_clean.txt'), 'wb') as fw:
+            with open(qa_path, 'r') as f:
+                for line in f:
+                    q = line.strip()
+                    if q != '4' and q != "":
+                        item = {}
+                        q_real = q_aida_extract(q)
+                        item[Q_ALIAS] = q
+                        item[A_ALIAS] = '4'
+                        qa_pairs_list.append(item)
+
+                        print "sent: ", q
+                        fw.write("sent: "+q+'\n')
+                        print "real: ", q_real
+                        fw.write('real: '+q_real+'\n')
+                        print 
+                        fw.write('\n')
+                        
+                    ctr += 1
 
     return qa_pairs_list
 
@@ -63,3 +77,21 @@ def post_proc(args, res, domain):
             fw.write('\nresult: ')
             fw.write((i[S_ALIAS]).encode('utf-8').strip())
             fw.write('\n-----------------')
+
+def q_aida_extract(q):
+    q_list = q.split('.')
+    l = len(q_list)
+    q_real = ""
+    if l > 1:
+        if q_list[-1] != "":
+            i = 0
+            q_real = q_list[l-1]
+            while re.match('\d', q_list[l-2-i][-1]) and re.match('\d', q_list[l-2-i+1][0]) and l-2-i>=0:
+                q_real = q_list[l-2-i]+'.'+q_real
+                i+=1
+        else:
+            q_real = q_list[-2]+'.'
+    else:
+        q_real = q
+    return q_real
+

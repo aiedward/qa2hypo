@@ -263,7 +263,7 @@ def rule_based_transform(question, ans, q_type, corenlp, quiet):
 
 
             elif q_type == QUESTION_TYPES[8]:
-                s, e = find_regex('(name)|(choose)|(identify)', question)
+                s, e = find_regex('(name)|(choose)|(identify)|(find)|(determine)', question)
                 hypo = replace(question, s, e, ans+' is')
 
             # if starting with aux_v, exchange the Verb and Noun
