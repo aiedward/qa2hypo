@@ -16,7 +16,8 @@ def qa2hypo_test(qa_pairs_list):
     
     # sampling question type (for examining the result)
     q_type = QUESTION_TYPES[QUESTION_TYPE]
-    qa_pairs_list = sample_qa(qa_pairs_list, k, q_type) # set the case lower in the function for questions
+    if k != -2:
+        qa_pairs_list = sample_qa(qa_pairs_list, k, q_type) # set the case lower in the function for questions
     
     # result file
     res = []
@@ -159,7 +160,6 @@ def rule_based_transform(question, ans, q_type, corenlp, quiet):
 
             # how
             elif q_type == QUESTION_TYPES[7]:
-                print "question: ", question
                 s, e = find_regex(q_type, question)
 
                 question_head = question[:s]

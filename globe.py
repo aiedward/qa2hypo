@@ -32,10 +32,11 @@ A_ALIAS = 'ans'
 S_ALIAS = 'statement'
 
 # SAMPLE_TYPE:
+# -2: don't sample
 # -1: sample by question type
 # 0: sample the complementary set of the listed question types
 # not -1 or 0: sample randomly, the value denoting the sample size. QUESTION_TYPE ignored
-SAMPLE_TYPE = 80
+SAMPLE_TYPE = -2
 
 # used when SAMPLE_TYPE == -1
 QUESTION_TYPE = 9
