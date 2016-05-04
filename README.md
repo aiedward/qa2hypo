@@ -6,3 +6,4 @@ Transfer question and answer pairs into assertive sentences.
 2. Download the Nodebox English Linguistics library and put it in the root directory of the project.
 3. Run ```python ./stanford-corenlp-python/corenlp.py``` for using the stanford corenlp package for constituency parsing.
 4. Call ```qa2hypo(question, answer, corenlp)``` in ```qa2hypo.py``` to get the transformation in ```str``` structure. To optimize for speed in compensation for performance, set argument ```corenlp``` as False, and accordingly there is no need for step 2.
+5. To work with [https://github.com/seominjoon/dqa-net](DQA-net), tensorflow installation is required. Common issues include an outdated version of libstdc++6, and the solutions can be found [http://stackoverflow.com/questions/16605623/where-can-i-get-a-copy-of-the-file-libstdc-so-6-0-15](here) and [http://askubuntu.com/questions/575505/glibcxx-3-4-20-not-found-how-to-fix-this-error](here).
