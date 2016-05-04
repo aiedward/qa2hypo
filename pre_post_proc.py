@@ -11,6 +11,9 @@ def pre_proc(args, domain):
     print("Loading json files ...")
     root_dir = args.root_dir
 
+    list_ctr = []
+    list_head = []
+
     # Min's diagram qa dataset
     if domain == 'diagram':
         qa_path = os.path.join(root_dir, 'qa_pairs.json')
@@ -34,8 +37,6 @@ def pre_proc(args, domain):
         qa_pairs_list = []
         ctr = 0
 
-        list_len = []
-        list_head = []
         with open(os.path.join(root_dir, 'data_clean.txt'), 'wb') as fw:
             with open(qa_path, 'r') as f:
                 for line in f:
@@ -57,35 +58,73 @@ def pre_proc(args, domain):
                             # print 
                             # fw.write('\n')
 
-                        list_len.append(len(q_list))
+                        list_ctr.append(len(q_list))
                         list_head.append(q_head)
 
                     ctr += 1
 
-    return qa_pairs_list
+    return qa_pairs_list, list_ctr, list_head
 
 # post-processing
 # use ~/csehomedir/projects/dqa/dqa-data/shining3-vqa for diagram question answering
 # use ~/csehomedir/projects/dqa/math-data for math question answering
 # use ~/csehomedir/projects/dqa/MultiEQProbs for math question answering updated
-def post_proc(args, res, domain):
+def post_proc(args, res, domain, list_ctr, list_head):
     root_dir = args.root_dir
-    qa_path = os.path.join(root_dir, 'qa_pairs.json')
+    # qa_path = os.path.join(root_dir, 'qa_pairs.json')
     qa_res_path = os.path.join(root_dir, 'qa_res.json')
 
-    print("Dumping json files ...")
-    json.dump(res, open(qa_res_path, 'wb'))
+    if domain != 'math_aida':
+        print("Dumping json files ...")
+        json.dump(res, open(qa_res_path, 'wb'))
 
-    qa_res_path_2 = os.path.join(root_dir, 'qa_res.txt')
-    with open(qa_res_path_2, 'wb') as fw:
-        for i in res:
-            fw.write('\nquestion: ')
-            fw.write((i[Q_ALIAS]).encode('utf-8').strip())
-            fw.write('\nanswer: ')
-            fw.write(str(i[A_ALIAS]))
-            fw.write('\nresult: ')
-            fw.write((i[S_ALIAS]).encode('utf-8').strip())
-            fw.write('\n-----------------')
+        qa_res_path_2 = os.path.join(root_dir, 'qa_res.txt')
+        with open(qa_res_path_2, 'wb') as fw:
+            for i in res:
+                fw.write('\nquestion: ')
+                fw.write((i[Q_ALIAS]).encode('utf-8').strip())
+                fw.write('\nanswer: ')
+                fw.write(str(i[A_ALIAS]))
+                fw.write('\nresult: ')
+                fw.write((i[S_ALIAS]).encode('utf-8').strip())
+                fw.write('\n-----------------')
+
+    else:
+        # merge answers with question heads
+        res_merge=[]
+        index = 0
+        for i in range(len(list_head)):
+            q_tmp = []
+            a_tmp = []
+            s_tmp = []
+
+            tail_ctr = list_ctr[i]
+            for j in range(index, index+tail_ctr):
+                q_tmp.append(res[j][Q_ALIAS])
+                a_tmp.append(res[j][A_ALIAS])
+                s_tmp.append(res[j][S_ALIAS])
+
+            question = list_head[i]+' '+' '.join(q_tmp)
+            ans = '|'.join(a_tmp)
+            sent = list_head[i]+' '+' '.join(s_tmp)
+
+            res_merge.append({Q_ALIAS:question, A_ALIAS:ans, S_ALIAS:sent})
+            
+        print("Dumping json files ...")
+        json.dump(res_merge, open(qa_res_path, 'wb'))
+
+        qa_res_path_2 = os.path.join(root_dir, 'qa_res.txt')
+        with open(qa_res_path_2, 'wb') as fw:
+            for i in res_merge:
+                fw.write('\nquestion: ')
+                fw.write((i[Q_ALIAS]).encode('utf-8').strip())
+                fw.write('\nanswer: ')
+                fw.write(str(i[A_ALIAS]))
+                fw.write('\nresult: ')
+                fw.write((i[S_ALIAS]).encode('utf-8').strip())
+                fw.write('\n-----------------')
+
+
 
 # isolate questions and descriptions heuristically
 def q_aida_extract(q):
