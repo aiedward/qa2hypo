@@ -93,23 +93,38 @@ def post_proc(args, res, domain, list_ctr, list_head):
         # merge answers with question heads
         res_merge=[]
         index = 0
-        for i in range(len(list_head)):
-            q_tmp = []
-            a_tmp = []
-            s_tmp = []
 
-            tail_ctr = list_ctr[i]
-            for j in range(index, index+tail_ctr):
-                q_tmp.append(res[j][Q_ALIAS])
-                a_tmp.append(res[j][A_ALIAS])
-                s_tmp.append(res[j][S_ALIAS])
+        # prepare for grouped sentences from individual sentences
+        qa_res_path_3 = os.path.join(root_dir, 'qa_res_individual.txt')
+        with open(qa_res_path_3, 'wb') as fw0:
+            for i in range(len(list_head)):
+                q_tmp = []
+                a_tmp = []
+                s_tmp = []
 
-            question = list_head[i]+' '+' '.join(q_tmp)
-            ans = '|'.join(a_tmp)
-            sent = list_head[i]+' '+' '.join(s_tmp)
+                # number of sentences in the group
+                tail_ctr = list_ctr[i]
+                for j in range(index, index+tail_ctr):
+                    q_tmp.append(res[j][Q_ALIAS])
+                    a_tmp.append(res[j][A_ALIAS])
+                    s_tmp.append(res[j][S_ALIAS])
 
-            res_merge.append({Q_ALIAS:question, A_ALIAS:ans, S_ALIAS:sent})
+                    fw0.write('\nquestion: ')
+                    fw0.write((res[j][Q_ALIAS]).encode('utf-8').strip())
+                    fw0.write('\nanswer: ')
+                    fw0.write(str(res[j][A_ALIAS]))
+                    fw0.write('\nresult: ')
+                    fw0.write((res[j][S_ALIAS]).encode('utf-8').strip())
+                    fw0.write('\n-----------------')
+                index+=tail_ctr
+
+                question = list_head[i]+' '+' '.join(q_tmp)
+                ans = '|'.join(a_tmp)
+                sent = list_head[i]+' '+' '.join(s_tmp)
+
+                res_merge.append({Q_ALIAS:question, A_ALIAS:ans, S_ALIAS:sent})
             
+        # write grouped sentences
         print("Dumping json files ...")
         json.dump(res_merge, open(qa_res_path, 'wb'))
 
