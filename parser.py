@@ -11,11 +11,11 @@ server = jsonrpc.ServerProxy(jsonrpc.JsonRpc20(), jsonrpc.TransportTcpIp(addr=("
 
 
 def get_parse_tree(sent):
-	"""
-	Get an nltk tree structure.
-	:param the sentence string:
-	:return the tree structure:
-	"""
+    """
+    Get an nltk tree structure.
+    :param the sentence string:
+    :return the tree structure:
+    """
     sent_parse = loads(server.parse(sent))
     parse_tree = sent_parse['sentences'][0]['parsetree']
     tree = Tree.fromstring(parse_tree)
