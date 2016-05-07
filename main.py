@@ -14,7 +14,7 @@ if __name__ == "__main__":
     ############################
     # test on single sentence
     ############################
-    # question = "How many pounds of peanuts and cashews would you use to make 25 pounds of a mixture that sells for 92 dollars?"
+    # question = "How many pairs of shoes do you have?"
     # answer = "0.5"
     # tree = get_parse_tree(question)
     # tree.pretty_print()
