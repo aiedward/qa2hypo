@@ -98,39 +98,32 @@ def rule_based_transform(question, ans, q_type, corenlp, quiet):
 
             elif q_type == QUESTION_TYPES[2]:
                 s, e = find_regex('where', question)
+                # does
                 if re.search('where '+AUX_V_DOES_REGEX, question):
                     s2, e2 = find_regex('where '+AUX_V_DOES_REGEX, question)
                     hypo = replace(question, s2, e2, '')
                     hypo = strip_nonalnum_re(hypo)+' at '+ans
-                # elif re.search('where '+AUX_V_DO_REGEX, question):
-                #     s3, e3 = find_regex('where '+AUX_V_DO_REGEX, question)
-                #     hypo = replace(question, s3, e3, '')
-                #     hypo = strip_nonalnum_re(hypo)+' at '+ans
+                # be
                 else:
                     hypo = replace(question, s, e, ans)
+                    hypo = strip_nonalnum_re(hypo)
 
             elif q_type == QUESTION_TYPES[3]:
                 if corenlp:
-                    # do
+                    # does
                     if re.search('what '+AUX_V_DOESONLY_REGEX, question):
                         s_aux, e_aux, s_vp, e_vp, first_VP=find_np_pos(question, ans, 'what '+AUX_V_DOESONLY_REGEX, node_type='VP', if_root_node=True)
                         hypo = replace(question, e_vp, e_vp, ' '+ans+' ')
                         # print('hypo:', hypo)
                         hypo = replace(hypo, s_aux, e_aux, '')
                         hypo = strip_nonalnum_re(hypo)
-                    # # does
-                    # elif re.search('what '+AUX_V_DO_REGEX, question):
-                    #     s_aux, e_aux, s_vp, e_vp, first_VP=find_np_pos(question, ans, 'what '+AUX_V_DO_REGEX, node_type='VP', if_root_node=True)
-                    #     hypo = replace(question, e_vp, e_vp, ' '+ans+' ')
-                    #     # print('hypo:', hypo)
-                    #     hypo = replace(hypo, s_aux, e_aux, '')
-                    #     hypo = strip_nonalnum_re(hypo)
                     # be
                     else:
                         s, e = find_type_position(question, 'WHNP')
                         if not s and not e:
                             s, e = find_regex('what', question)
                         hypo = replace(question, s, e, ans)
+                        hypo = strip_nonalnum_re(hypo)
 
                 else:
                     s, e = find_regex('what', question)
